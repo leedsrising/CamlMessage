@@ -3,7 +3,7 @@
  * of [command] here.  This helps OCaml achieve something called
  * "separate compilation", which you could google for.  Yes,
  * it's a little bit annoying, but there is a good reason for it. *)
-type command = Talk of string | Friend of string | Quit | Friends_list |
+type command = Talk of string | Friend of string | Quit | Friends_list | Help |
                 Leave_conversation | Add_friend of string | Unfriend of string| Add_shortcut of (string*string) | 
                 Define of string | Setstatus of string | View_requests | Error
 
@@ -34,6 +34,7 @@ let parse str =
     | "/DEFINE" -> Define second
     | "/SETSTATUS" -> Setstatus second
     | "/REQUESTS" -> View_requests
+    | "/HELP" -> Help
     | _ -> Error
   else 
     failwith "Should never get here"

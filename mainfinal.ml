@@ -14,73 +14,72 @@ let rec talking_repl state messages =
   let new_state = do' (parse input) state in
   match parse input with
   | Quit -> ()
-  | Leave_conversation -> let () = print_string ("Leave_conversation")
-    in
+  | Leave_conversation -> 
+    let () = print_string ("Leave_conversation") in
     repl new_state
-  | Add_shortcut intended -> let () = print_string ("Add_shortcut")
-    in
+  | Add_shortcut intended -> 
+    let () = print_string ("Add_shortcut") in
     talking_repl new_state messages
-  | Define intended -> let () = print_string ("Define")
-    in
+  | Define intended -> 
+    let () = print_string ("Define") in
     talking_repl new_state messages
-  | Error -> let () = print_string ("Error")
-    in
+  | Error -> 
+    let () = print_string ("Error") in
     talking_repl state messages
   | _ -> talking_repl state messages
+
+(* [repl state] is the main repl that the user enters when they are
+ * not in a conversation. The user can do any of the commmands presented.
+ *)
 
 and repl state =
   let input = read_line () in
   let new_state = do' (parse input) state in
     match parse input with
-    | Talk intended -> let () = print_string ("talking to" ^ intended)
-      in
+    | Talk intended -> 
+      let () = print_string ("talking to" ^ intended) in
       talking_repl new_state ""
-    | Add_friend intended -> let () = print_string ("Friend")
-      in
+    | Add_friend intended -> 
+      let () = print_string ("Friend") in
       repl new_state
     | Quit -> ()
-    | Friends_list -> let () = print_string ("Friends_list")
-      in
+    | Friends_list -> 
+      let () = print_string ("Friends_list") in
       repl new_state
-    | Leave_conversation -> let () = print_string ("Leave_conversation")
-      in
+    | Leave_conversation -> 
+      let () = print_string ("Leave_conversation") in
       repl new_state
-    | Unfriend intended -> let () = print_string ("Unfriend")
-      in
+    | Unfriend intended -> 
+      let () = print_string ("Unfriend") in
       repl new_state
-    | Add_shortcut intended -> let () = print_string ("Add_shortcut")
-      in
+    | Add_shortcut intended -> 
+      let () = print_string ("Add_shortcut") in
       repl new_state
-    | Define intended -> let () = print_string ("Define")
-      in
+    | Define intended -> 
+      let () = print_string ("Define") in
       repl new_state
-    | Setstatus intended -> let () = print_string ("Setstatus")
-      in
+    | Setstatus intended -> 
+      let () = print_string ("Setstatus") in
       repl new_state
-    | View_requests -> let () = print_string ("View_requests")
-      in
+    | View_requests -> 
+      let () = print_string ("View_requests") in
       repl new_state
-    | Error -> let () = print_string ("Error")
-      in
+    | Error -> 
+      let () = print_string ("Error") in
       repl new_state
+    | Help -> 
+      let () = print_string ("Error") in
+      repl state
     | _ -> repl new_state
-
-(* [main ()] starts the REPL, which prompts for a game to play.
- * You are welcome to improve the user interface, but it must
- * still prompt for a game to play rather than hardcode a game file. *)
-(* let main () =
-  let initial_state = State.init_state in
-  print_string ("\n\nWelcome to the OCaml messaging system.\n ");
-  match read_line () with
-  | input -> repl initial_state
-  | _ -> failwith "should never get here" *)
 
 (* [make_password f] creates a password [f] for this user.
  *)
 let make_password f =
   let initial_state = State.init_state "" (*IP address*)in
   try
-  (*save password f*) repl initial_state
+  (*save password f*) 
+  let () = print_string ("\n\nType /help to get a list of commands\n") in
+  repl initial_state
   with
   | _ -> print_string "There was an error in the program \n"
 
@@ -90,7 +89,9 @@ let make_password f =
 let check_password f =
   let initial_state = State.init_state "" (*IP address*) in
   try
-  (*check password f*) repl initial_state
+  (*check password f*) 
+  let () = print_string ("\n\nType /help to get a list of commands\n") in
+  repl initial_state
   with
   | _ -> print_string "There was an error in the program \n"
 

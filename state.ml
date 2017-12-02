@@ -18,19 +18,63 @@ type state = {
   shortcut_list : (string * string) list
 }
 
-(* The following function converts a json into a OCaml type that is defined
- * above. *)
-
 (* The following functions returns information in a state. Details are in
  * state.mli *)
 
-let win_score s = s.username
+(* [current_friends_to_string frnds accum] takes in the friends list of this 
+ * user and returns the string version of their friends list
+ *) 
+let rec current_friends_to_string frnds accum = 
+  match frnds with
+  | [] -> accum
+  | x::xs -> current_friends_to_string xs (accum ^ " " ^ x.name)
 
-let score s = s.friends_list
+(* [current_friends s] takes in the current state of this user and returns
+ * their friendlist in string version
+ *) 
+let current_friends s = 
+  "Your current friends are \n\n" ^ current_friends_to_string s.friends_list ""
 
-let turns s = s.messages
+(* [current_requests_to_string frnds accum] takes in the requests list of this 
+ * user and returns the string version of their requests list
+ *) 
+ let rec current_requests_to_string frnds accum = 
+  match frnds with
+  | [] -> accum
+  | x::xs -> current_friends_to_string xs (accum ^ " " ^ x.name)
 
-let current_room_id s = s.current_person_being_messaged
+(* [current_requests s] takes in the current state of this user and returns
+ * their requests in string version
+ *) 
+let current_requests s = 
+  "Your current requests are \n\n" ^ current_requests_to_string s.requests ""
+
+(* [chat_history_names] takes in the current messages list of this 
+ * user and returns the string version of the people that they have a chat
+ * history with
+ *) 
+ let rec chat_history_names messages accum = 
+  match messages with
+  | [] -> accum
+  | (x, _)::xs -> chat_history_names xs (accum ^ " " ^ x.name)
+
+(* [chat_history s] takes in the current state of this user and returns
+ * their chat history in string version
+ *) 
+let chat_history s = 
+  "You have chat history with \n\n" ^ chat_history_names s.messages ""
+
+(* [current_friends_to_string frnds accum] takes in the friends list of this 
+ * user and returns the string version of their friends list
+ *) 
+ let rec current_shortcuts_to_string shrtcuts accum = 
+  match shrtcuts with
+  | [] -> accum
+  | (shrtcut, wrd)::xs -> 
+    current_shortcuts_to_string xs (accum ^ "\n" ^ shrtcut ^ "shortcuts to" ^ wrd)
+
+let shortcuts s = 
+  "Your current shortcuts are \n\n" ^ current_shortcuts_to_string s.shortcut_list ""
 
 (* [init_state j] takes in the initial login information of the user and 
  * initilizes the program based on that information *)
@@ -173,8 +217,5 @@ let do' cmd st =
     | Setstatus intended -> set_status intended st
     | View_requests -> st
     | Error -> st
+    | Help -> st
     | _ -> st
-  (* else 
-    match cmd with
-    | Leave_conversation messages -> st
-    | Message ->  *)
