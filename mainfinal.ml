@@ -3,6 +3,8 @@
  *)
 open Command
 open State
+open Unix
+open MessageTransformer
 
 (* [talking_repl state] is the repl that the user enters when they are
  * currently in a conversation. The user can leave the conversation, add a
@@ -86,20 +88,46 @@ let make_password f =
 (* [check_password f] checks the given password against the
  * data currently in store.
  *)
+
+let rec dir_helper (file : string) (dir : string) (handler : dir_handle) =
+  try
+    let next_file = handler |> Unix.readdir in
+    if next_file = file then true
+    else dir_helper file dir handler
+  with
+  | _ -> Unix.closedir handler; false
+
+let password_exists =
+  let d_handle = Unix.getcwd () |> Unix.opendir in
+  dir_helper ("login.txt") (Unix.getcwd ()) d_handle
+
+let rec check_password_helper (password : string) (file : string) (dir : string) (handler : dir_handle) : bool =
+  try
+    let next_file = handler |> Unix.readdir in
+    if next_file = file then let l1 = words_in_file next_file in
+      (List.hd l1 = password) || (List.hd (List.tl l1) = password)
+    else check_password_helper file dir handler
+  with
+  | _ -> Unix.closedir handler; false
+
 let check_password f =
   let initial_state = State.init_state "" (*IP address*) in
-  try
-  (*check password f*) 
-  let () = print_string ("\n\nType /help to get a list of commands\n") in
-  repl initial_state
-  with
-  | _ -> print_string "There was an error in the program \n"
+  let d_handle = Unix.getcwd () |> Unix.opendir in
+    let password_matches = check_password_helper f ("login.txt") (Unix.getcwd ()) d_handle in
+    if password_matches then 
+      try
+      (*check password f*)
+      let () = print_string ("\n\nType /help to get a list of commands\n") in
+      repl initial_state
+      with
+      | _ -> print_string "There was an error in the program \n"
+    else ()
 
 (* [main ()] starts the REPL, which prompts for a game to play.
  * You are welcome to improve the user interface, but it must
  * still prompt for a game to play rather than hardcode a game file. *)
 let main () =
-  if (*has password*) true
+  if password_exists
   then begin
     print_string ("\n\nWelcome to the 3110 Text Adventure Game engine.\n");
     print_endline "Please enter your password.\n";
