@@ -162,10 +162,10 @@ let word_is_valid word (dict:dict) =
 (* [suggest word] gives suggestions for a word that is invalid.
  * example: [suggest "hallo"] = ["hello"] *)
 let suggest (w:word) =
-  Suggest.suggest1 w d
+  Suggest.suggest2 w d
 
 let suggest' (w:word) =
-  Suggest.suggest2 w d
+  Suggest.suggest1 w d
 
 let cmd_add (w:word) =
   print_endline ("The word [" ^ w ^ "] is added successfully.");
@@ -247,7 +247,8 @@ let rec send (msg : msg) =
     match word_lst with
     | [] -> (print_endline "No spellcheck errors found."; msg)
     | h :: t -> if (word_is_valid h dict) then send_helper dict t
-      else if (is_valid_shortcut h sc) then send (cmd_replace h (try_shortcut h sc) msg)
+      else if (is_valid_shortcut h (shortcuts_in_file "shortcut.txt"))
+      then send (cmd_replace h (try_shortcut h (shortcuts_in_file "shortcut.txt")) msg)
       else (print_instructions h; wait4response h msg)
   in send_helper (d @ make_dict "userdef" @ make_dict "ignore") word_lst
 
