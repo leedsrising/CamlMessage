@@ -17,4 +17,10 @@ module type MessageTransformer = sig
     (* [def] defines a user defined shortcut *)
     val def : word -> word -> unit
 
+    (* [pm] encyrpts a message *)
+    val pm : msg -> msg
+
+    (* [depm] decyrpts a message *)
+    val depm : msg -> msg
+
 end

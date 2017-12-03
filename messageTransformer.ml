@@ -113,6 +113,8 @@ let make_dict (file : string) : dict =
 let (d:dict) = make_dict "dict"
 (* A smaller dictionary to be used for testing. *)
 (*let (sd:dict) = make_dict "smalldict"*)
+(* A reversed dictionary for decryption purposes. *)
+let (drev:dict) = List.rev d
 (* The references for shortcuts. *)
 let sc = shortcuts_in_file "shortcut.txt"
 
@@ -233,7 +235,7 @@ let print_instructions (w:word) : unit =
 (* [send msg] checks whether all the words in a message is "valid",
  * i.e., it passes the spellcheck test and is not a defined shortcut.
  * It alters the message until all the words are valid. *)
-let rec send (msg : msg) =
+let rec send (msg : msg) : msg =
   let word_lst = split msg in
   let wait4response (w:word) (msg:msg) : msg =
     let input = read_int() in begin
@@ -268,6 +270,93 @@ print_endline ("\n\n
                               (_/\n
 
 ")
+(* represents a key for encryption and decryption. *)
+type key = int list
+
+(* [encyrpt_keygen msg] creates a key for a certain message that is encyrpted.*)
+let encyrpt_keygen msg =
+  let lst = split msg in
+  let rec keygen_helper = function
+  | [] -> []
+  | h :: t -> begin
+      if (word_is_valid h d)
+      then String.length h :: keygen_helper t
+      else 0 :: keygen_helper t
+    end
+  in
+  keygen_helper lst
+
+(* [flush_list'' c] is a helper for generate_keygen *)
+let rec flush_list (c:out_channel) = function
+  | [] -> close_out c
+  | h :: t -> output_string c ((string_of_int h) ^ "\n"); flush c; flush_list c t
+
+(* [encyrpt_keygen msg] creates "key.txt" that is generated onto the computer. *)
+let generate_keygen msg =
+  flush_list ("key.txt" |> open_out) (encyrpt_keygen msg)
+
+let rec encyrpt_helper_recurse i (rep : int) = function
+  | [] -> failwith "the dictionary reached its end"
+  | h :: t -> if i = rep then h else encyrpt_helper_recurse i (rep+1) t
+
+let rec encyrpt_helper (i : int) (w : word) = function
+  | [] -> failwith "something went wrong with encyrption"
+  | h::t -> if h = (w |> String.lowercase_ascii) then encyrpt_helper_recurse i 1 t
+    else encyrpt_helper i w t
+
+(* [encyrpt_word w] finds the word in the dictionary that is n words below the
+ * word w, n being the length of w. If w is not a valid word, w is returned. *)
+let encyrpt_word w =
+  if (word_is_valid w d) then
+    let key = encyrpt_keygen w in
+    let lst_to_int lst=
+      match lst with
+      | i :: [] -> i
+      | _  -> failwith "something went wrong with encyrption'"
+    in
+    encyrpt_helper (lst_to_int key) w d
+  else w
+
+(* [encyrpt_msg msg] encyrpts a message and returns a word list of the
+ * encyrpted message *)
+let encyrpt_msg msg =
+  let corrected_msg = send msg in generate_keygen msg;
+  let word_lst = split corrected_msg in
+  let rec encyrpt_helper = function
+    | [] -> []
+    | h::t -> encyrpt_word h :: encyrpt_helper t
+  in encyrpt_helper word_lst
+
+let pm msg : msg =
+  let word_lst = encyrpt_msg msg in
+  let rec helper = function
+    | [] -> ""
+    | h::t -> h ^ " " ^ helper t
+  in (helper word_lst) |> String.trim
+
+(* [decyrpt_word w] finds the word in the dictionary that is n words above the
+ * word w, n being a corresponding number from "key.txt". *)
+let decyrpt_word w (i:int) =
+  if i = 0 then w
+  else encyrpt_helper i w drev
+
+(* [decyrpt_msg msg] encyrpts a message and returns a word list of the
+ * decyrpted message *)
+let decyrpt_msg msg =
+  let num_lst = (lines_in_file "key.txt") |> List.rev in
+  let word_lst = split msg in
+  let rec decyrpt_helper (count : int) = function
+    | [] -> []
+    | h :: t -> (decyrpt_word h ((List.nth num_lst count) |> int_of_string)) ::
+                decyrpt_helper (count+1) t
+  in decyrpt_helper 0 word_lst
+
+let depm msg =
+  let word_lst = decyrpt_msg msg in
+  let rec helper = function
+    | [] -> ""
+    | h::t -> h ^ " " ^ helper t
+  in (helper word_lst) |> String.trim
 
 (* NOTE: [ignore] doesn't work as intended. only one word can be ignored
    (because of how the file is flushed every time a new word is ignored), and
