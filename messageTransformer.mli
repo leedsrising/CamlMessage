@@ -4,30 +4,17 @@ module type MessageTransformer = sig
 
     (* The type of a message *)
     type msg
-
     (* The type of a word *)
     type word
+    (* The type of a dictionary *)
+    type dict
 
-    (* [split msg] splits a message into distinct words.
-     * example: [split "Hello there, friend."] = ["hello";"there";"friend"] *)
-    val split : msg -> word list
+    (* [send] checks whether all the words in a message is "valid",
+     * i.e., it passes the spellcheck test and is not a defined shortcut.
+     * It alters the message until all the words are valid. *)
+    val send : msg -> msg
 
-    (* [is_valid word] checks whether a word is "valid", i.e., it passes
-     * the spellcheck test and is not a defined shortcut.
-     * example: [is_valid "hello"] = true
-     *          [is_valid "hallo"] = false *)
-    val is_valid : word -> bool
-
-    (* [validify word] adds the word to the dictionary such that it passes
-     * is_valid in subsequent checks. *)
-    val validify : word -> unit
-
-    (* [suggest word] gives suggestions for a word that is invalid.
-     * example: [suggest "hallo"] = ["hello"] *)
-    val suggest : word -> word list
-
-    (* [replace msg] replaces a word that is a shortcut with the actual word(s).
-     * example: [replace "omg"] = ["oh my gawd"] *)
-    val replace : word -> word
+    (* [def] defines a user defined shortcut *)
+    val def : word -> word -> unit
 
 end

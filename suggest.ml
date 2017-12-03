@@ -1,6 +1,6 @@
 open Char
 
-type letter = A|B|C|D|E|F|G|H|I|J|K|L|M|N|O|P|Q|R|S|T|U|V|W|X|Y|Z
+type letter = A|B|C|D|E|F|G|H|I|J|K|L|M|N|O|P|Q|R|S|T|U|V|W|X|Y|Z|Num
 
 let letter_to_value = function
   |Q -> (1,1)
@@ -29,6 +29,7 @@ let letter_to_value = function
   |B -> (5,3)
   |N -> (6,3)
   |M -> (7,3)
+  |Num -> (0,5)
 
 let char_to_letter = function
   |'q' -> Q
@@ -57,7 +58,7 @@ let char_to_letter = function
   |'b' -> B
   |'n' -> N
   |'m' -> M
-  | _ -> failwith "Something went wrong with spellcheck."
+  | _ -> Num (*failwith "Something went wrong with spellcheck."*)
 
 (* [distance x y] computes the relative distance of the two letters. *)
 let distance (x:letter) (y:letter) =
