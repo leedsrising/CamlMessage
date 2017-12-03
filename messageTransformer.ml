@@ -7,7 +7,7 @@ type msg = string
 (* represents a word. NOTE: prewords and words are defined differently below. *)
 type word = string
 (* represents a dictionary.
- * NOTE: reimplement using more efficient data structure later. *)
+ * NOTE: maybe reimplement using more efficient data structure later. *)
 type dict = string list
 
 (* [find_preword msg] finds the prewords in a given message. A preword
@@ -37,6 +37,14 @@ let find_preword msg =
 let find_word msg =
   let regexp_boundary = Str.regexp "[^A-Za-z0-9]+" in
   Str.split regexp_boundary msg
+
+(* [split_shortcut msg] splits a string of format "shortcut->phrase" to
+ * a tuple (shortcut,phrase).
+ * Example: "gtg->got to go" becomes ("gtg", "got to go") *)
+let split_shortcut string =
+  let regexp_space = Str.regexp "[->]+" in
+  let shortcut_phrase_lst = Str.split regexp_space string in
+  ((List.nth shortcut_phrase_lst 0), (List.nth shortcut_phrase_lst 1))
 
 (* [split msg] splits a message into distinct words.
  * The order of the words in the list is the order of the words that
@@ -75,6 +83,17 @@ let words_in_file (file : string) =
                      (elt |> String.lowercase_ascii) @ lst) [] line_lst |>
   List.sort_uniq Pervasives.compare
 
+(* [shortcuts_in_file file] finds all the words in any given file and returns a
+ * (shortcut:string * phrase:string) list.
+ * returns: a list that contains all the words in a file that is:
+ * 1) all in lowercase
+ * 2) sorted in the order as you would find in a dictionary. Words that begin
+ *    with digits come before words that begin with letters. *)
+let shortcuts_in_file (file : string) =
+  let line_lst = lines_in_file file in
+  List.fold_left (fun lst elt -> split_shortcut elt :: lst) [] line_lst |>
+    List.sort_uniq Pervasives.compare
+
 let rec dir_helper (file : string) (dir : string) (handler : dir_handle) =
   try
     let next_file = handler |> Unix.readdir in
@@ -93,7 +112,9 @@ let make_dict (file : string) : dict =
 (* The main dictionary to be used for reference. *)
 let (d:dict) = make_dict "dict"
 (* A smaller dictionary to be used for testing. *)
-let (sd:dict) = make_dict "smalldict"
+(*let (sd:dict) = make_dict "smalldict"*)
+(* The references for shortcuts. *)
+let sc = shortcuts_in_file "shortcut.txt"
 
 (* [flush_list c] is a helper for add_word *)
 let rec flush_list (c:out_channel) = function
@@ -106,6 +127,19 @@ let add_word (w:word) =
   let new_list = w::orig_lst in
   let c = "userdef.txt" |> open_out in
   flush_list c new_list
+
+(* [flush_list' c] is a helper for add_shortcut *)
+let rec flush_list' (c:out_channel) = function
+  | [] -> close_out c
+  | (sc,phr) :: t -> output_string c (sc ^ "->" ^ phr ^ "\n"); flush c; flush_list' c t
+
+(* [add_shortcut sc phrase] adds a user defined shortcut
+ * into the file "shortcut.txt" *)
+let def (sc : word) (phrase : string) =
+  let orig_lst = "shortcut.txt" |> shortcuts_in_file in
+  let new_list = (sc,phrase)::orig_lst in
+  let c = "shortcut.txt" |> open_out in
+  flush_list' c new_list
 
 (* [ignore_word w] adds a word to be ignored into the file "ignore.txt"
  * That file is cleaned every time a new message is entered, so invalid
@@ -138,13 +172,31 @@ let cmd_add (w:word) =
   add_word w
 
 (* [replace w sub msg] replaces the first instance of the word [w] and
- * replaces it with the word [sub]. All other parts of the message is identical.
- * A list containing all the words of the new message is returned.
- * example: [replace "hallo" "hello" "hallo there hallo"] =
- *          ["hello"; "there" ; "hallo"] *)
-let replace (w:word) (sub:word) msg =
+ * replaces it with the word [sub].
+ * All other parts of the message is identical.*)
+let replace (w:word) (sub:word) msg : string =
   let reg_expr = Str.regexp w in
   Str.replace_first reg_expr sub msg
+
+(* [is_valid_shortcut sc ref_table] checks if the shortcut is defined in
+ * a shortcut reference table created by [shortcuts_in_file].
+ * If it is, return true .
+ * Otherwise, return false *)
+let rec is_valid_shortcut sc ref_table =
+  match ref_table with
+  | [] -> false
+  | (short,refer) :: t -> if sc = short then true
+    else is_valid_shortcut sc t
+
+(* [try_shortcut sc ref_table] checks if the shortcut is defined in
+ * a shortcut reference table created by [shortcuts_in_file].
+ * If it is, return [the full length of the phrase].
+ * Otherwise, throw an exception *)
+let rec try_shortcut sc ref_table =
+  match ref_table with
+  | [] -> failwith "shortcut does not exist"
+  | (short,refer) :: t -> if sc = short then refer
+    else try_shortcut sc t
 
 (* [list_to_msg lst] changes a list or words into a message.
  * example: [list_to_msg ["hello"; "there" ; "hallo"] =
@@ -195,9 +247,11 @@ let rec send (msg : msg) =
     match word_lst with
     | [] -> (print_endline "No spellcheck errors found."; msg)
     | h :: t -> if (word_is_valid h dict) then send_helper dict t
+      else if (is_valid_shortcut h sc) then send (cmd_replace h (try_shortcut h sc) msg)
       else (print_instructions h; wait4response h msg)
   in send_helper (d @ make_dict "userdef" @ make_dict "ignore") word_lst
 
+(* exactly the same as [send], except it prints the message in a cute way. *)
 let send' msg : unit =
 print_endline ("\n\n
 
