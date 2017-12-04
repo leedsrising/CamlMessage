@@ -161,7 +161,6 @@ let main () =
   if password_exists
   then prompt_for_password ()
   else begin
-    print_string ("\n\nWelcome to the 3110 Text Adventure Game engine.\n");
     print_endline "This is your first time. Please enter a username.\n";
     print_string  "> ";
     match read_line () with
