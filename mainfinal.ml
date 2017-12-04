@@ -13,14 +13,14 @@ open Lwt
  * shortcut, and define a new word, but none of the other functions will
  * do anything
  *)
-let rec talking_repl state messages = 
+(* let rec talking_repl  messages = 
   let input = read_line () in
-  let new_state = do' (parse input) state in
+  let new_state = do' (parse input) ! in
   match parse input with
   | Quit -> return_unit
   | Leave_conversation -> 
     print_endline ("Leave_conversation");
-    repl new_state ()
+    repl  ()
   | Add_shortcut intended -> 
     print_endline ("Add_shortcut");
     talking_repl new_state messages
@@ -30,52 +30,53 @@ let rec talking_repl state messages =
   | Error -> 
     print_endline ("Error");
     talking_repl state messages
-  | _ -> talking_repl state messages
+  | _ -> talking_repl state messages *)
 
 (* [repl state] is the main repl that the user enters when they are
  * not in a conversation. The user can do any of the commmands presented.
  *)
 
-and repl state () =
+let rec repl () =
   Lwt_io.print "> " >>=
   fun () -> Lwt_io.read_line Lwt_io.stdin >>= 
   fun input ->
-  let new_state = do' (parse input) state in
+   state_ref := do' (parse input) !state_ref;
     match parse input with
     | Talk intended -> 
       print_endline ("talking to " ^ intended);
-      talking_repl new_state ""
+      repl  ()
     | Friend intended -> 
       print_endline ("Friend");
-      repl new_state ()
+      repl  ()
     | Quit -> return_unit
     | Friends_list -> 
       print_endline ("Friends_list");
-      repl new_state ()
+      repl  ()
     | Leave_conversation -> 
       print_endline ("Leave_conversation");
-      repl new_state ()
+      repl  ()
     | Unfriend intended -> 
       print_endline ("Unfriend");
-      repl new_state ()
+      repl  ()
     | Add_shortcut intended -> 
       print_endline ("Add_shortcut");
-      repl new_state ()
+      repl  ()
     | Define intended -> 
       print_endline ("Define");
-      repl new_state ()
+      repl  ()
     | Setstatus intended -> 
       print_endline ("Setstatus");
-      repl new_state ()
+      repl  ()
     | View_requests -> 
       print_endline ("View_requests");
-      repl new_state ()
+      print_endline (current_requests !state_ref);
+      repl ()
     | Error -> 
       print_endline ("Error");
-      repl new_state ()
+      repl  ()
     | Help -> 
       print_endline command_help_message;
-      repl state ()
+      repl  ()
 
 (* (* [make_password f] creates a password [f] for this user.
  *)
@@ -147,6 +148,7 @@ let main () =
     | _ -> failwith "should never get here"
   end *)
   
-  Lwt_main.run (Lwt.join [(start_server ()); (repl (init_state "testuser") ())])
+  state_ref := {!state_ref with username = "test_user"};
+  Lwt_main.run (Lwt.join [(start_server ()); repl ()])
 
 let () = ignore (main ())

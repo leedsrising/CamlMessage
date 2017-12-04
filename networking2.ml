@@ -7,40 +7,53 @@ let listen_address = Unix.inet_addr_loopback
 let listen_port = 9000
 let backlog = 10
 
-type net_state = {out_buffer:string option; do_close:bool}
+let listeners = ref []
 
+type conn_addr = {ip:string; port:int}
+type net_state = {out_buffer:string option ; do_close:bool; addr:conn_addr}
+
+let to_ip_port saddr = 
+  match saddr with 
+  | Lwt_unix.ADDR_INET (ip, port) -> (Unix.string_of_inet_addr ip, port)
+  | _ -> failwith "bad saddr type"
+
+(* universal writer *)
 let rec handle_write ic oc st_r () =
-
-  print_endline "handle";
   (match !st_r.out_buffer with
   | None -> return_unit
   | Some s -> 
-    begin st_r := {!st_r with out_buffer = None}; Lwt_io.write_line oc s end >>=
+    begin st_r := {!st_r with out_buffer = None}; 
+    Lwt_io.write_line oc s >>= fun () -> Lwt_io.flush oc end) >>=
 
-    (fun () -> Lwt_unix.sleep 0.5 >>= fun () -> 
-    match !st_r.do_close with
-    | true -> Lwt_io.close ic >>= fun () -> Lwt_io.close oc
-    | false -> handle_write ic oc st_r ()) (*connection remains open *)
+  fun () -> Lwt_unix.sleep 1.0 >>= fun () -> 
+  match !st_r.do_close with
+  | true -> Lwt_io.close ic >>= fun () -> Lwt_io.close oc
+  | false -> handle_write ic oc st_r () (*connection remains open *)
 
-let handle_message msg =
-  Lwt_io.printl msg
+  (* TODO: check for thread problems here *)
+let handle_message msg st_r =
+  ignore (List.map (fun (listener_fun:(string -> int -> string -> unit)) -> 
+    listener_fun !st_r.addr.ip !st_r.addr.port msg) !listeners); return_unit
 
-let rec handle_read ic oc () =
+(* universal reader *)
+let rec handle_read ic oc st_r () =
   Lwt_io.read_line_opt ic >>=
   (fun msg ->
       match msg with
-      | Some msg -> handle_message msg >>= handle_read ic oc
-      | None -> Lwt_log.info "Connection closed" >>= return)
+      | Some msg -> handle_message msg st_r >>= handle_read ic oc st_r
+      | None -> st_r := {!st_r with do_close = true}; 
+        Lwt_log.info "Connection closed" >>= return)
 
 (* accept incoming connecting to server *)
 let accept_connection conn =
+  let open Lwt_unix in
   print_endline "connection accepted";
-  let fd, _ = conn in
+  let fd, saddr = conn in
+  let (ip, port) = to_ip_port saddr in
   let ic = Lwt_io.of_fd Lwt_io.Input fd in
   let oc = Lwt_io.of_fd Lwt_io.Output fd in
-  Lwt.on_failure (handle_read ic oc ()) (fun e -> Lwt_log.ign_error (Printexc.to_string e));
-
-  let net_state = ref {out_buffer = None; do_close = false} in 
+  let net_state = ref {out_buffer = None; do_close = false; addr = {ip; port}} in 
+  Lwt.on_failure (handle_read ic oc net_state ()) (fun e -> Lwt_log.ign_error (Printexc.to_string e));
   Lwt.on_failure (handle_write ic oc net_state ()) (fun e -> Lwt_log.ign_error (Printexc.to_string e));
   Lwt_log.info "New connection" >>= fun() -> return net_state
 
@@ -51,24 +64,24 @@ let create_server sock =
       Lwt_unix.accept sock >>= accept_connection >>= fun _ -> serve ()
   in serve
 
-let create_socket addr port () =
+let rec create_socket ip_addr port () =
   let open Lwt_unix in
-  let sock = socket PF_INET SOCK_STREAM 0 in
-  ignore (bind sock @@ ADDR_INET(addr, port));
+  try let sock = socket PF_INET SOCK_STREAM 0 in
+  ignore (bind sock @@ ADDR_INET(ip_addr, port));
   listen sock backlog;
-  sock
+  (sock, port) with e -> create_socket ip_addr (port + 1) ()
 
 (* create client handlers for outgoing connection *)
-let rec make_connection conn () =
+let rec make_connection conn addr () =
   print_endline "connectingasda..";
   let fd = conn in
   let ic = Lwt_io.of_fd Lwt_io.Input fd in
   let oc = Lwt_io.of_fd Lwt_io.Output fd in
-  Lwt.on_failure (handle_read ic oc ()) (fun e -> Lwt_log.ign_error (Printexc.to_string e));
-
-  let net_state = ref {out_buffer = None; do_close = false} in
+  let net_state = ref {out_buffer = None; do_close = false; addr=addr} in
+  Lwt.on_failure (handle_read ic oc net_state ()) (fun e -> Lwt_log.ign_error (Printexc.to_string e));
   Lwt.on_failure (handle_write ic oc net_state ()) (fun e -> Lwt_log.ign_error (Printexc.to_string e));
   Lwt_log.info "Connected to remote" >>= fun () -> return net_state
+
 
 (* connects to remote *)
 let rec do_connect ip port = 
@@ -79,16 +92,20 @@ let rec do_connect ip port =
   let sock = socket PF_INET SOCK_STREAM 0 in  
   print_endline "doc3";
   connect sock (Lwt_unix.ADDR_INET (addr, port)) >>=
-  make_connection sock
+  make_connection sock {ip=ip; port=port}
 
 let send_friend_req ip port from_name = 
   do_connect ip port >>=
   fun net_state -> 
-    return (net_state := {!net_state with out_buffer = Some ("friendreq " ^ from_name)})
+    return (net_state := {!net_state with out_buffer = Some ("friendreq " ^ from_name);})
+
+let register_read_listener (listener:(string -> int -> string -> unit)) = 
+  listeners := listener :: !listeners 
 
 let start_server () =
-  print_endline ("Starting server on port " ^ string_of_int listen_port);
-  let sock = create_socket listen_address listen_port () in 
+  print_endline ("Starting server...");
+  let sock, port = create_socket listen_address listen_port () in 
   let serve = create_server sock in
+  print_endline ("Started server on port " ^ string_of_int port);
   serve ()
 

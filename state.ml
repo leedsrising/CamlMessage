@@ -3,12 +3,13 @@ open Networking2
 
 (* [id] represents the identification of someone through their IP *)
 
+
 type person = {
   id : string;
   name : string;
   port : int;
-}
-
+  }
+  
 type state = {
   username: string;
   status : string;
@@ -18,8 +19,25 @@ type state = {
   requests: person list;
   dictionary : string list;
   shortcut_list : (string * string) list
-}
+  }
 
+(* [init_state j] takes in the initial login information of the user and 
+ * initilizes the program based on that information *)
+ let init_state (name: string) : state =
+  {
+    username = name;
+    status = "";
+    friends_list = [(*access from txt file stored in computer*)];
+    messages = [(*access from txt file stored in computer*)];
+    current_person_being_messaged = None;
+    requests = [(*access from networking*)];
+    dictionary = [(*access*)];
+    shortcut_list = []
+  }
+
+  let state_ref = ref (init_state "")
+  
+    
 (* The following functions returns information in a state. Details are in
  * state.mli *)
 
@@ -35,33 +53,33 @@ let rec get_friend_by_name name st =
 let rec get_friend_by_ip ip st = 
   List.find_opt (fun friend -> ip = friend.id) st.friends_list
 
-(* [current_friends_to_string frnds accum] takes in the friends list of this 
- * user and returns the string version of their friends list
+(* [current_friends_to_string st] returns the string version of
+    the user's friends list
  *) 
-let rec current_friends_to_string frnds accum = 
-  match frnds with
-  | [] -> accum
-  | x::xs -> current_friends_to_string xs (accum ^ " " ^ x.name)
+ let current_friends_to_string st = 
+  List.fold_left (^) "" 
+    (List.mapi (fun i person -> (string_of_int (i + 1)) ^ ". " ^ person.name) 
+    st.friends_list)
 
 (* [current_friends s] takes in the current state of this user and returns
  * their friendlist in string version
  *) 
 let current_friends s = 
-  "Your current friends are \n\n" ^ current_friends_to_string s.friends_list ""
+  "\nYour current friends are: \n\n" ^ current_friends_to_string s
 
-(* [current_requests_to_string frnds accum] takes in the requests list of this 
- * user and returns the string version of their requests list
+(* [current_requests_to_string st] returns the string version of
+    the user's requests list
  *) 
- let rec current_requests_to_string frnds accum = 
-  match frnds with
-  | [] -> accum
-  | x::xs -> current_friends_to_string xs (accum ^ " " ^ x.name)
+ let current_requests_to_string st = 
+  List.fold_left (^) "" 
+    (List.mapi (fun i person -> (string_of_int (i + 1)) ^ ". " ^ person.name) 
+    st.requests)
 
 (* [current_requests s] takes in the current state of this user and returns
  * their requests in string version
  *) 
 let current_requests s = 
-  "Your current requests are \n\n" ^ current_requests_to_string s.requests ""
+  "\nYour current requests are: \n\n" ^ current_requests_to_string s
 
 (* [chat_history_names] takes in the current messages list of this 
  * user and returns the string version of the people that they have a chat
@@ -90,19 +108,7 @@ let chat_history s =
 let shortcuts s = 
   "Your current shortcuts are \n\n" ^ current_shortcuts_to_string s.shortcut_list ""
 
-(* [init_state j] takes in the initial login information of the user and 
- * initilizes the program based on that information *)
-let init_state (name: string) : state =
-  {
-    username = name;
-    status = "";
-    friends_list = [(*access from txt file stored in computer*)];
-    messages = [(*access from txt file stored in computer*)];
-    current_person_being_messaged = None;
-    requests = [(*access from networking*)];
-    dictionary = [(*access*)];
-    shortcut_list = []
-  }
+
 
 (* [add_friend friend st] returns the new state with [friend] added onto
  * this user's friends list
@@ -121,6 +127,9 @@ let add_friend (name:string) (ip:string) (port:int) (st:state) : state =
     messages = st.messages;
     current_person_being_messaged = st.current_person_being_messaged
   }
+
+let add_friend_req name ip port st =
+  {st with requests = {id=ip; port=port; name=name;} :: st.requests}
 
 (* [friend_removed friend friends accum] is a helper for [remove_friend]
  * that removes [friend] from [friends]
@@ -221,3 +230,18 @@ let do' cmd st =
     | View_requests -> st
     | Error -> st
     | Help -> st
+
+let handle_remote_cmd ip port msg =
+  let split = Str.split (Str.regexp " ") msg in
+  let cmd = List.hd split in
+  match cmd with 
+  | "friendreq" -> 
+    let name = (List.nth split 1) in
+    state_ref := add_friend_req name ip port !state_ref;
+    print_endline ("You have received a friend request from " ^ name)
+  | _ -> failwith "Unexpected Remote Command: Use the latest version."
+
+(* register listeners in networking *)
+let () = 
+  print_endline "registering...";
+  register_read_listener handle_remote_cmd
