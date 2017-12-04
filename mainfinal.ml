@@ -79,83 +79,93 @@ let rec repl () =
       print_endline command_help_message;
       repl ()
 
-  (* [make_password f] creates a password [f] for this user.
-   *)
-   let make_password username password =
-      let () =
-        let oc = open_out "login.txt" in   
-        fprintf oc "%s\n" (username);  
-        fprintf oc "%s\n" (password);  
-        close_out oc in 
+(* [make_password username password] stores the users username and password in a text file "login.txt"
+ * and sets the state username to [username]
+ *)
+let make_password username password =
+  let () =
+    let oc = open_out "login.txt" in   
+      fprintf oc "%s\n" (username);  
+      fprintf oc "%s\n" (password);  
+      close_out oc in 
     try
-    (*save password f*) 
     let () = print_string ("\n\nType /help to get a list of commands\n") in
-      state_ref := {!state_ref with username = "test_user"};
+      state_ref := {!state_ref with username = username };
       Lwt_main.run (Lwt.join [(start_server ()); repl ()]) 
     with
     | _ ->           
-      state_ref := {!state_ref with username = "test_user"};
+      state_ref := {!state_ref with username = username };
       Lwt_main.run (Lwt.join [(start_server ()); repl ()]) 
   
-  (* [check_password f] checks the given password against the
-   * data currently in store.
-   *)
+let rec dir_helper (file : string) (dir : string) (handler : dir_handle) =
+  try
+    let next_file = handler |> Unix.readdir in
+    if next_file = file then true
+    else dir_helper file dir handler
+  with
+  | _ -> Unix.closedir handler; false
   
-  let rec dir_helper (file : string) (dir : string) (handler : dir_handle) =
-    try
-      let next_file = handler |> Unix.readdir in
-      if next_file = file then true
-      else dir_helper file dir handler
-    with
-    | _ -> Unix.closedir handler; false
-  
-  let password_exists =
-    let d_handle = Unix.getcwd () |> Unix.opendir in
+let password_exists =
+  let d_handle = Unix.getcwd () |> Unix.opendir in
     dir_helper ("login.txt") (Unix.getcwd ()) d_handle
   
-  let rec check_password_helper (password : string) (file : string) (dir : string) (handler : dir_handle) : bool =
-    try
-      let next_file = handler |> Unix.readdir in
+let rec check_password_helper (password : string) (file : string) (dir : string) (handler : dir_handle) : bool =
+  try
+    let next_file = handler |> Unix.readdir in
       if next_file = file then let ic = open_in next_file in
           try 
             let line1 = input_line ic in  
               let line2 = input_line ic in 
               let password_correct = password = line2 in 
               close_in ic; password_correct
-  
           with e ->
               close_in_noerr ic;
               raise e            
       else check_password_helper password file dir handler
-    with
-    | _ -> Unix.closedir handler; false
-  
-  let rec prompt_for_password () = 
-    begin
-      print_string ("\n\nWelcome to the 3110 Text Adventure Game engine.\n");
-      print_endline "Please enter your password.\n";
-      print_string  "> ";
-      match read_line () with
-      | input -> let check_password f =
-        let d_handle = Unix.getcwd () |> Unix.opendir in
-          let password_matches = check_password_helper f ("login.txt") (Unix.getcwd ()) d_handle in
-          if password_matches then 
-            try
-            let () = print_string ("\n\nType /help to get a list of commands\n") in
-            state_ref := {!state_ref with username = "test_user"};
-            Lwt_main.run (Lwt.join [(start_server ()); repl ()]) 
-            with
-            | _ ->         
-              state_ref := {!state_ref with username = "test_user"};
-              Lwt_main.run (Lwt.join [(start_server ()); repl ()]) 
-          else prompt_for_password () in 
-          check_password input
-          | _ -> failwith "should never get here"
-      end
+  with
+  | _ -> Unix.closedir handler; false
 
-(* [main ()] starts the REPL, which prompts for a game to play.
- * You are welcome to improve the user interface, but it must
- * still prompt for a game to play rather than hardcode a game file. *)
+let rec get_username file dir handler = 
+  try
+    let next_file = handler |> Unix.readdir in
+      if next_file = file then let ic = open_in next_file in
+        try 
+          let line1 = input_line ic in  
+            let username = line1 in
+            close_in ic; username
+        with e ->
+          close_in_noerr ic;
+          raise e            
+      else get_username file dir handler
+  with
+  | _ -> Unix.closedir handler; "no username"
+
+  (* [prompt_for_password] prompts the user for their password then 
+   * checks the given password against the data stored in "login.txt"
+   *)
+let rec prompt_for_password () = 
+  begin
+    print_endline "Please enter your password.\n";
+    print_string  "> ";
+    match read_line () with
+    | input -> let d_handle = Unix.getcwd () |> Unix.opendir in
+      let password_matches = check_password_helper input ("login.txt") (Unix.getcwd ()) d_handle in
+        if password_matches then let username = get_username "login.txt" (Unix.getcwd ()) d_handle in 
+          try
+            let () = print_string ("\n\nType /help to get a list of commands\n") in
+            state_ref := {!state_ref with username = username};
+            Lwt_main.run (Lwt.join [(start_server ()); repl ()]) 
+          with
+          | _ ->         
+            state_ref := {!state_ref with username = username};
+            Lwt_main.run (Lwt.join [(start_server ()); repl ()]) 
+        else print_endline "Incorrect password.\n";
+          prompt_for_password ()
+          | _ -> failwith "should never get here"
+  end
+
+(* [main ()] starts the REPL, which prompts for a user to log in.
+*)
 let main () = 
   print_endline ("\n\nWelcome to CamlMsg!\n");
   if password_exists
