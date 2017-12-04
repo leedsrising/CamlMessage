@@ -7,34 +7,67 @@ type command = Talk of string | Friend of string | Quit | Friends_list | Help |
                 Leave_conversation | Add_friend of string | Unfriend of string| Add_shortcut of (string*string) | 
                 Define of string | Setstatus of string | View_requests | Error
 
+type command_type = { name:string; min_args:int; usage:string; 
+aliases:string list; builder:(string list -> command)  }
+
+
+let commands = [
+
+{name = "/talk"; min_args = 1; 
+  usage = "/talk <friend>"; aliases = [];
+  builder = (fun args -> Talk (List.nth args 1))};
+  
+{name = "/friend"; min_args = 1; 
+  usage = "/friend <friend>"; aliases = [];
+  builder = (fun args -> Talk (List.nth args 1))};
+  
+{name = "/quit"; min_args = 0; 
+  usage = "/quit"; aliases = [];
+  builder = (fun args -> Quit)};
+
+{name = "/friends"; min_args = 0; 
+  usage = "/friends"; aliases = [];
+  builder = (fun args -> Friends_list)};
+
+{name = "/help"; min_args = 0; 
+  usage = "/help"; aliases = [];
+  builder = (fun args -> Help)};
+
+{name = "/leave"; min_args = 0; 
+  usage = "/leave"; aliases = [];
+  builder = (fun args -> Leave_conversation)};
+
+{name = "/unFriend"; min_args = 1; 
+  usage = "/unFriend <friend>"; aliases = [];
+  builder = (fun args -> Unfriend (List.nth args 1))};
+
+{name = "/define"; min_args = 1; 
+  usage = "/define <word>"; aliases = [];
+  builder = (fun args -> Define (List.nth args 1))};
+
+  (*TODO: Fix args *)
+{name = "/setStatus"; min_args = 1; 
+  usage = "/setStatus <new status>"; aliases = [];
+  builder = (fun args -> Setstatus (List.nth args 1))};
+
+{name = "/requests"; min_args = 0; 
+  usage = "/requests"; aliases = [];
+  builder = (fun args -> View_requests)};
+
+{name = "/addShortcut"; min_args = 2; 
+    usage = "/addshortcut <shortcut> <replacement>"; aliases = [];
+    builder = (fun args -> Add_shortcut ((List.nth args 1), (List.nth args 2)))};
+
+]
+  
 let parse str =
-  let trimmed_str = String.trim str in
-  if String.contains trimmed_str ' ' 
-    then 
-    let space_index = String.index trimmed_str ' ' in
-    let first = String.sub trimmed_str 0 space_index in
-    let second = (String.sub trimmed_str (space_index + 1) (String.length trimmed_str - 1)) in
-    if String.contains second ' '
-      then
-      let second_space = String.index second ' ' in
-      let second_word = (String.sub second 0 second_space) in
-      let third_word = (String.sub second (second_space + 1) (String.length second_word - 1)) in
-      match (String.uppercase_ascii first) with
-      | "/ADDSHORTCUT" -> Add_shortcut (second_word, third_word)
-      | _ -> Error
-    else
-    match (String.uppercase_ascii first) with
-    | "/TALK" -> Talk second
-    | "/FRIEND" -> Friend second
-    | "/QUIT" -> Quit
-    | "/FRIENDS" -> Friends_list
-    | "/LEAVE" -> Leave_conversation
-    | "/ADDFRIEND" -> Add_friend second
-    | "/UNFRIEND" -> Unfriend second
-    | "/DEFINE" -> Define second
-    | "/SETSTATUS" -> Setstatus second
-    | "/REQUESTS" -> View_requests
-    | "/HELP" -> Help
-    | _ -> Error
-  else 
-    failwith "Should never get here"
+  let trimmed = String.trim str in
+  let split = Str.split (Str.regexp " ") trimmed in
+  let usr_cmd = List.hd split in
+  (*TODO: aliases *)
+  match List.find_opt (fun cmd -> (String.lowercase_ascii cmd.name) 
+    = (String.lowercase_ascii usr_cmd)) commands with
+  | Some cmd -> 
+    if List.length split - 1 >= cmd.min_args then
+    (cmd.builder split) else (print_endline ("Usage: " ^ cmd.usage); Error)
+  | None -> Error
