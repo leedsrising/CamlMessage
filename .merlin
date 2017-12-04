@@ -3,5 +3,7 @@ PKG oUnit
 PKG yojson
 PKG str
 PKG ANSITerminal
+PKG lwt
+PKG lwt.unix
 
 PKG async
