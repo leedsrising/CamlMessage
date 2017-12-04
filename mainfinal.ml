@@ -20,7 +20,7 @@ let rec talking_repl state messages =
   | Quit -> return_unit
   | Leave_conversation -> 
     print_endline ("Leave_conversation");
-    repl new_state
+    repl new_state ()
   | Add_shortcut intended -> 
     print_endline ("Add_shortcut");
     talking_repl new_state messages
@@ -36,45 +36,46 @@ let rec talking_repl state messages =
  * not in a conversation. The user can do any of the commmands presented.
  *)
 
-and repl state =
-  let input = read_line () in
+and repl state () =
+  Lwt_io.print "> " >>=
+  fun () -> Lwt_io.read_line Lwt_io.stdin >>= 
+  fun input ->
   let new_state = do' (parse input) state in
     match parse input with
     | Talk intended -> 
-      print_endline ("talking to" ^ intended);
+      print_endline ("talking to " ^ intended);
       talking_repl new_state ""
-    | Add_friend intended -> 
+    | Friend intended -> 
       print_endline ("Friend");
-      repl new_state
+      repl new_state ()
     | Quit -> return_unit
     | Friends_list -> 
       print_endline ("Friends_list");
-      repl new_state
+      repl new_state ()
     | Leave_conversation -> 
       print_endline ("Leave_conversation");
-      repl new_state
+      repl new_state ()
     | Unfriend intended -> 
       print_endline ("Unfriend");
-      repl new_state
+      repl new_state ()
     | Add_shortcut intended -> 
       print_endline ("Add_shortcut");
-      repl new_state
+      repl new_state ()
     | Define intended -> 
       print_endline ("Define");
-      repl new_state
+      repl new_state ()
     | Setstatus intended -> 
       print_endline ("Setstatus");
-      repl new_state
+      repl new_state ()
     | View_requests -> 
       print_endline ("View_requests");
-      repl new_state
+      repl new_state ()
     | Error -> 
       print_endline ("Error");
-      repl new_state
+      repl new_state ()
     | Help -> 
       print_endline command_help_message;
-      repl state
-    | _ -> repl new_state
+      repl state ()
 
 (* (* [make_password f] creates a password [f] for this user.
  *)
@@ -128,7 +129,7 @@ let rec check_password_helper (password : string) (file : string) (dir : string)
 (* [main ()] starts the REPL, which prompts for a game to play.
  * You are welcome to improve the user interface, but it must
  * still prompt for a game to play rather than hardcode a game file. *)
-let main () =
+let main () = 
   print_endline ("\n\nWelcome to CamlMsg!\n");
   (* if password_exists
   then begin
@@ -145,9 +146,7 @@ let main () =
     | input -> make_password input
     | _ -> failwith "should never get here"
   end *)
-  Lwt_main.run (Lwt.join [start_server (); repl (init_state "testUsr")])
+  
+  Lwt_main.run (Lwt.join [(start_server ()); (repl (init_state "testuser") ())])
 
-
-
-
-let () = main ()
+let () = ignore (main ())

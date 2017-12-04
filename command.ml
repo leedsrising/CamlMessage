@@ -1,10 +1,12 @@
+open Lwt
+
 (* A type exposed and defined in a .mli file must also be defined in
  * the corresponding .ml file.  So you must repeat the definition
  * of [command] here.  This helps OCaml achieve something called
  * "separate compilation", which you could google for.  Yes,
  * it's a little bit annoying, but there is a good reason for it. *)
-type command = Talk of string | Friend of string | Quit | Friends_list | Help |
-                Leave_conversation | Add_friend of string | Unfriend of string| Add_shortcut of (string*string) | 
+type command = Talk of string | Friend of (string*string*int) | Quit | Friends_list | Help |
+                Leave_conversation | Unfriend of string| Add_shortcut of (string*string) | 
                 Define of string | Setstatus of string | View_requests | Error
 
 type command_type = { name:string; min_args:int; desc:string; usage:string; 
@@ -17,9 +19,10 @@ let commands = [
   usage = "/talk <friend>"; aliases = [];
   builder = (fun args -> Talk (List.nth args 1))};
   
-{name = "/friend"; min_args = 1; desc = "Add a new friend";
-  usage = "/friend <friend>"; aliases = [];
-  builder = (fun args -> Talk (List.nth args 1))};
+{name = "/friend"; min_args = 3; desc = "Add a new friend";
+  usage = "/friend <name> <ip address> <port>"; aliases = [];
+  builder = (fun args -> let port = int_of_string (List.nth args 3) 
+  in Friend ((List.nth args 1), (List.nth args 2), port))};
   
 {name = "/quit"; min_args = 0; desc = "Quit the program";
   usage = "/quit"; aliases = [];
@@ -55,7 +58,7 @@ let commands = [
   builder = (fun args -> View_requests)};
 
 {name = "/addShortcut"; min_args = 2; desc = "Add a shortcut (abbrev.) for a word";
-    usage = "/addshortcut <shortcut> <replacement>"; aliases = [];
+    usage = "/addShortcut <shortcut> <replacement>"; aliases = [];
     builder = (fun args -> Add_shortcut ((List.nth args 1), (List.nth args 2)))};
 
 ]
@@ -64,6 +67,9 @@ let command_help_message = "\n--- CamlMsg Help ---\n\n" ^ (List.fold_left (^) ""
   (List.mapi (fun i cmd -> (string_of_int (i + 1)) ^ ". " ^
   cmd.usage ^ "\n" ^ cmd.desc ^ "\n\n") commands)) ^ "--- End of Help ---"
   
+let invalid_usage cmd = 
+  (ignore (Lwt_io.printl ("Usage: " ^ cmd.usage));  Error)
+
 let parse str =
   let trimmed = String.trim str in
   let split = Str.split (Str.regexp " ") trimmed in
@@ -73,5 +79,7 @@ let parse str =
     = (String.lowercase_ascii usr_cmd)) commands with
   | Some cmd -> 
     if List.length split - 1 >= cmd.min_args then
-    (cmd.builder split) else (print_endline ("Usage: " ^ cmd.usage); Error)
+      try (cmd.builder split) with e -> invalid_usage cmd
+    else 
+      invalid_usage cmd
   | None -> Error

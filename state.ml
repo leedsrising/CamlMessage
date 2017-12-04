@@ -1,10 +1,12 @@
 open Command
+open Networking2
 
 (* [id] represents the identification of someone through their IP *)
 
 type person = {
   id : string;
   name : string;
+  port : int;
 }
 
 type state = {
@@ -20,6 +22,18 @@ type state = {
 
 (* The following functions returns information in a state. Details are in
  * state.mli *)
+
+(* [get_friend_by_name name st] is the friend (option) named [name] according
+   to st. Returns None if no friend is found
+*) 
+let rec get_friend_by_name name st = 
+  List.find_opt (fun friend -> name = friend.name) st.friends_list
+
+(* [get_friend_by_name ip st] is the friend (option) with ip [ip] according
+   to st. Returns None if no friend is found
+*) 
+let rec get_friend_by_ip ip st = 
+  List.find_opt (fun friend -> ip = friend.id) st.friends_list
 
 (* [current_friends_to_string frnds accum] takes in the friends list of this 
  * user and returns the string version of their friends list
@@ -93,10 +107,13 @@ let init_state (name: string) : state =
 (* [add_friend friend st] returns the new state with [friend] added onto
  * this user's friends list
  *)
-let add_friend (friend:string) (st:state) : state =
+let add_friend (name:string) (ip:string) (port:int) (st:state) : state =
+  send_friend_req ip port st.username;
+  
   let friend_person = {
-    id = "";
-    name = friend
+    id = ip;
+    port = port;
+    name = name
   } in
   { st with
     username = st.username;
@@ -108,52 +125,38 @@ let add_friend (friend:string) (st:state) : state =
 (* [friend_removed friend friends accum] is a helper for [remove_friend]
  * that removes [friend] from [friends]
  *)
-let rec friend_removed (friend: person) (friends: person list) (accum: person list) =
-  match friends with
-  | [] -> accum
-  | p::xs -> 
-    if p = friend then friend_removed friend xs accum
-    else friend_removed friend xs (p::accum)
+let rec friend_removed (name:string) (friends: person list) =
+  List.filter (fun friend -> friend.name != name) friends
 
 (* [remove_friend friend st] returns the new state with [friend] taken off 
  * this user's friends list
  *)
-let remove_friend (friend:string) (st:state) : state =
-  let friend_person = {
-    id = "";
-    name = friend
-  } in
+let remove_friend (friend_name:string) (st:state) : state =
   { st with
+    friends_list = friend_removed friend_name st.friends_list;
+    current_person_being_messaged = st.current_person_being_messaged (*TODO: leave convo if talking to this friend *)
+  }
+
+(* [pre_message_friend friend st] returns the new state with [friend] added as
+ * this user's current person being messaged
+ *)
+let pre_message_friend (friend:person) (st:state) : state =
+ { st with
     username = st.username;
-    friends_list = friend_removed friend_person st.friends_list [];
+    friends_list = st.friends_list;
     messages = st.messages;
-    current_person_being_messaged = st.current_person_being_messaged
+    current_person_being_messaged = Some friend 
   }
 
 (* [add_message_to_list friend message message_list] adds [message] just sent to
  * [friend] to the list of messages for this user
  *)  
-let rec add_message_to_list (friend: person) (message: string) (message_list: (person * string list) list) accum =
+ let rec add_message_to_list (friend: person) (message: string) (message_list: (person * string list) list) accum =
   match message_list with
   | [] -> (friend, [message])::message_list
   | (p, sl)::xs -> 
     if p = friend then accum@[(p, message::sl)]@message_list
     else add_message_to_list friend message xs ((p, sl)::accum)
-
-(* [pre_message_friend friend st] returns the new state with [friend] added as
- * this user's current person being messaged
- *)
-let pre_message_friend (friend:string) (st:state) : state =
-  let friend_person = {
-    id = "";
-    name = friend
-  } in
-  { st with
-    username = st.username;
-    friends_list = st.friends_list;
-    messages = st.messages;
-    current_person_being_messaged = Some friend_person
-  }
 
 (* [post_message_friend friend st] returns the new state with [friend] added onto
  * this user's friends list
@@ -206,8 +209,8 @@ let pre_message_friend (friend:string) (st:state) : state =
 let do' cmd st =
   (* if st.current_person_being_messaged = None then *)
     match cmd with
-    | Talk intended -> pre_message_friend intended st
-    | Friend intended -> add_friend intended st
+    | Talk intended -> (* pre_message_friend intended st *) st
+    | Friend (name, ip, port) -> add_friend name ip port st
     | Quit -> st
     | Friends_list -> st
     | Leave_conversation -> st
@@ -218,4 +221,3 @@ let do' cmd st =
     | View_requests -> st
     | Error -> st
     | Help -> st
-    | _ -> st
