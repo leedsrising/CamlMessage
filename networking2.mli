@@ -30,4 +30,7 @@ val register_read_listener: (net_state ref -> string -> unit) -> unit
 
 val start_server: unit -> 'a Lwt.t
 
+val send_friend_accpt: string -> int -> string -> unit Lwt.t
+
+
 
