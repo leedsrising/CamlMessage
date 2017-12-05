@@ -23,7 +23,7 @@ type state = {
 
 (* [init_state j] takes in the initial login information of the user and 
  * initilizes the program based on that information *)
- let init_state (name: string) : state =
+let init_state (name: string) : state =
   {
     username = name;
     status = "";
@@ -35,8 +35,7 @@ type state = {
     shortcut_list = []
   }
 
-  let state_ref = ref (init_state "")
-  
+let state_ref = ref (init_state "")
     
 (* The following functions returns information in a state. Details are in
  * state.mli *)
