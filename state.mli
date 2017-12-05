@@ -16,5 +16,11 @@ type state = {
   shortcut_list : (string * string) list
   }
 
+val current_friends : state -> string
+
+val current_requests : state -> string
+  
+val state_ref : state ref
+
 val do': Command.command -> state -> state
 

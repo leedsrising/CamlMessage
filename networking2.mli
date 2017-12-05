@@ -1,4 +1,4 @@
-type conn_addr = {ip:string; port:int}
+type conn_addr = {ip:string; port:int; fd:Lwt_unix.file_descr}
 type net_state = {out_buffer:string option ; do_close:bool; addr:conn_addr}
 
 (* A [NetworkEngine] facilitates communication among several clients. Handles    
@@ -24,7 +24,9 @@ val do_connect: string -> int -> net_state ref Lwt.t
 
 val send_friend_req: string -> int -> string -> unit Lwt.t
 
-val register_read_listener: (string -> int -> string -> unit) -> unit
+val send_friend_accpt: string -> int -> string -> unit Lwt.t
+
+val register_read_listener: (net_state ref -> string -> unit) -> unit
 
 val start_server: unit -> 'a Lwt.t
 

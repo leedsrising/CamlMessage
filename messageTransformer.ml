@@ -2,6 +2,8 @@ open Str
 open Unix
 open Suggest
 
+module MessageTransformer = struct
+
 (* represents a message *)
 type msg = string
 (* represents a word. NOTE: prewords and words are defined differently below. *)
@@ -361,3 +363,5 @@ let depm msg =
 (* NOTE: [ignore] doesn't work as intended. only one word can be ignored
    (because of how the file is flushed every time a new word is ignored), and
    the same word is ignored until a new word is ignored. *)
+
+end
