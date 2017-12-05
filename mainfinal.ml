@@ -52,12 +52,8 @@ let rec repl () =
     | Quit -> return_unit
     | Friends_list -> 
       print_endline ("Friends_list");
-<<<<<<< HEAD
       print_endline (current_friends !state_ref);
       repl  ()
-=======
-      repl ()
->>>>>>> 440671d7fa45021089c6f94cefe1859d2301936f
     | Leave_conversation -> 
       print_endline ("Leave_conversation");
       repl ()
