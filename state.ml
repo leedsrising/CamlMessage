@@ -108,28 +108,28 @@ let chat_history s =
 let shortcuts s = 
   "Your current shortcuts are \n\n" ^ current_shortcuts_to_string s.shortcut_list ""
 
-
+let get_friend_req name st = 
+  List.find_opt (fun friend -> friend.name = name) st.requests
 
 (* [add_friend friend st] returns the new state with [friend] added onto
  * this user's friends list
  *)
-let add_friend (name:string) (ip:string) (port:int) (st:state) : state =
-  send_friend_req ip port st.username;
-  
-  let friend_person = {
-    id = ip;
-    port = port;
-    name = name
-  } in
-  { st with
-    username = st.username;
-    friends_list = friend_person::st.friends_list;
-    messages = st.messages;
-    current_person_being_messaged = st.current_person_being_messaged
-  }
+let request_friend (ip:string) (port:int) (st:state) : state =
+  ignore (send_friend_req ip port st.username); st
 
+let accept_friend_req name st =
+  match get_friend_req name st with
+  | None -> 
+    print_endline ("Sorry, but you have no pending friend request from " ^ name); st
+  | Some friend -> begin
+    ignore (send_friend_accpt friend.id friend.port st.username); 
+   {st with friends_list = {id = friend.id; port = friend.port; name = name} :: st.friends_list} end
+    
 let add_friend_req name ip port st =
   {st with requests = {id=ip; port=port; name=name;} :: st.requests}
+
+let add_friend name ip port st = 
+  {st with friends_list = {id=ip; port=port; name=name} :: st.friends_list }
 
 (* [friend_removed friend friends accum] is a helper for [remove_friend]
  * that removes [friend] from [friends]
@@ -219,7 +219,7 @@ let do' cmd st =
   (* if st.current_person_being_messaged = None then *)
     match cmd with
     | Talk intended -> (* pre_message_friend intended st *) st
-    | Friend (name, ip, port) -> add_friend name ip port st
+    | Friend (ip, port) -> request_friend ip port st
     | Quit -> st
     | Friends_list -> st
     | Leave_conversation -> st
@@ -228,17 +228,25 @@ let do' cmd st =
     | Define intended -> define intended st
     | Setstatus intended -> set_status intended st
     | View_requests -> st
+    | Accept username -> accept_friend_req username st
     | Error -> st
     | Help -> st
 
-let handle_remote_cmd ip port msg =
+let handle_remote_cmd net_state msg =
   let split = Str.split (Str.regexp " ") msg in
   let cmd = List.hd split in
   match cmd with 
   | "friendreq" -> 
     let name = (List.nth split 1) in
-    state_ref := add_friend_req name ip port !state_ref;
-    print_endline ("You have received a friend request from " ^ name)
+    state_ref := add_friend_req name !net_state.addr.ip 
+      (int_of_string (List.nth split 2)) !state_ref;
+    print_endline ("You have received a friend request from " ^ name);
+    net_state := {!net_state with do_close = true};
+  | "friendaccept" -> 
+    let name = (List.nth split 1) in
+    state_ref := add_friend name !net_state.addr.ip !net_state.addr.port !state_ref;
+    print_endline (name ^ " has accepted your friend request!");
+    net_state := {!net_state with do_close = true};
   | _ -> failwith "Unexpected Remote Command: Use the latest version."
 
 (* register listeners in networking *)

@@ -51,6 +51,7 @@ let rec repl () =
     | Quit -> return_unit
     | Friends_list -> 
       print_endline ("Friends_list");
+      print_endline (current_friends !state_ref);
       repl  ()
     | Leave_conversation -> 
       print_endline ("Leave_conversation");
@@ -70,6 +71,9 @@ let rec repl () =
     | View_requests -> 
       print_endline ("View_requests");
       print_endline (current_requests !state_ref);
+      repl ()
+    | Accept _ -> 
+      print_endline ("Accept Req");
       repl ()
     | Error -> 
       print_endline ("Error");
