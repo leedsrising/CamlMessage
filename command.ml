@@ -12,7 +12,6 @@ type command = Talk of string | Friend of (string*string*int) | Quit | Friends_l
 type command_type = { name:string; min_args:int; desc:string; usage:string; 
 aliases:string list; builder:(string list -> command)  }
 
-
 let commands = [
 
 {name = "/talk"; min_args = 1; desc = "Starts a conversation with a friend";
