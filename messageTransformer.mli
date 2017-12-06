@@ -21,3 +21,5 @@
 
     (* [depm] decyrpts a message *)
     val depm : msg -> msg
+
+    val lines_in_file : string -> string list
