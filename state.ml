@@ -3,7 +3,6 @@ open Networking2
 
 (* [id] represents the identification of someone through their IP *)
 
-
 type person = {
   id : string;
   name : string;
@@ -41,19 +40,19 @@ let state_ref = ref (init_state "")
  * state.mli *)
 
 (* [get_friend_by_name name st] is the friend (option) named [name] according
-   to st. Returns None if no friend is found
-*) 
+ * to st. Returns None if no friend is found
+ *) 
 let rec get_friend_by_name name st = 
   List.find_opt (fun friend -> name = friend.name) st.friends_list
 
 (* [get_friend_by_name ip st] is the friend (option) with ip [ip] according
-   to st. Returns None if no friend is found
-*) 
+ * to st. Returns None if no friend is found
+ *) 
 let rec get_friend_by_ip ip st = 
   List.find_opt (fun friend -> ip = friend.id) st.friends_list
 
 (* [current_friends_to_string st] returns the string version of
-    the user's friends list
+ * the user's friends list
  *) 
  let current_friends_to_string st = 
   List.fold_left (^) "" 
@@ -102,31 +101,49 @@ let chat_history s =
   match shrtcuts with
   | [] -> accum
   | (shrtcut, wrd)::xs -> 
-    current_shortcuts_to_string xs (accum ^ "\n" ^ shrtcut ^ "shortcuts to" ^ wrd)
+    current_shortcuts_to_string xs (accum ^ "\n" 
+      ^ shrtcut ^ "shortcuts to" ^ wrd)
 
+(* [shortcuts s] takes in the state list of this user and returns the 
+ * string version of their current shortcuts
+ *) 
 let shortcuts s = 
-  "Your current shortcuts are \n\n" ^ current_shortcuts_to_string s.shortcut_list ""
+  "Your current shortcuts are \n\n" ^ 
+    current_shortcuts_to_string s.shortcut_list ""
 
 let get_friend_req name st = 
   List.find_opt (fun friend -> friend.name = name) st.requests
 
-(* [add_friend friend st] returns the new state with [friend] added onto
- * this user's friends list
+(* [request_friend ip int state] sends a friend request to the user with
+ * ip address [ip]
  *)
 let request_friend (ip:string) (port:int) (st:state) : state =
   ignore (send_friend_req ip port st.username); st
 
+(* [accept_friend_req name st] accepts the friend request from the user
+ * with name [name]. If there is not a request from the user [name], then
+ * the user receieves a message saying that no request was found.
+ *)
 let accept_friend_req name st =
   match get_friend_req name st with
   | None -> 
-    print_endline ("Sorry, but you have no pending friend request from " ^ name); st
+    print_endline ("Sorry, but you have no pending 
+      friend request from " ^ name); st
   | Some friend -> begin
     ignore (send_friend_accpt friend.id friend.port st.username); 
-   {st with friends_list = {id = friend.id; port = friend.port; name = name} :: st.friends_list} end
-    
+    {st with friends_list = 
+    {id = friend.id; port = friend.port; name = name} :: st.friends_list} end
+
+(* [add_friend_req name ip port st] changes this user's friends requests list 
+ * in state to include the new friend request from outside user with name 
+ * [name]
+ *)
 let add_friend_req name ip port st =
   {st with requests = {id=ip; port=port; name=name;} :: st.requests}
 
+(* [add_friend name ip port st] changes this user's friends list in state to 
+ * include the new friend from outside user with name [name]
+ *)
 let add_friend name ip port st = 
   {st with friends_list = {id=ip; port=port; name=name} :: st.friends_list }
 
@@ -213,7 +230,8 @@ let pre_message_friend (friend:person) (st:state) : state =
   }
 
 (* [do' cmd st] changes the state according to a command. See details in
- * state.mli *)
+ * state.mli 
+ *)
 let do' cmd st =
   (* if st.current_person_being_messaged = None then *)
     match cmd with
@@ -231,6 +249,10 @@ let do' cmd st =
     | Error -> st
     | Help -> st
 
+(* [handle_remote_cmd net_state msg] handles a command from a remote client so
+ * that it can read what other users are doing (i.e. telling when another user
+ * has accepted this user's friend request)
+ *)
 let handle_remote_cmd net_state msg =
   let split = Str.split (Str.regexp " ") msg in
   let cmd = List.hd split in

@@ -9,30 +9,6 @@ open Networking2
 open Lwt
 open Printf
 
-(* [talking_repl state] is the repl that the user enters when they are
- * currently in a conversation. The user can leave the conversation, add a
- * shortcut, and define a new word, but none of the other functions will
- * do anything
- *)
-(* let rec talking_repl  messages = 
-  let input = read_line () in
-  let new_state = do' (parse input) ! in
-  match parse input with
-  | Quit -> return_unit
-  | Leave_conversation -> 
-    print_endline ("Leave_conversation");
-    repl  ()
-  | Add_shortcut intended -> 
-    print_endline ("Add_shortcut");
-    talking_repl new_state messages
-  | Define intended -> 
-    print_endline ("Define");
-    talking_repl new_state messages
-  | Error -> 
-    print_endline ("Error");
-    talking_repl state messages
-  | _ -> talking_repl state messages *)
-
 (* [repl state] is the main repl that the user enters when they are
  * not in a conversation. The user can do any of the commmands presented.
  *)
@@ -73,8 +49,9 @@ let rec repl () =
       print_endline ("View_requests");
       print_endline (current_requests !state_ref);
       repl ()
-    | Accept _ -> 
+    | Accept s -> 
       print_endline ("Accept Req");
+      close_out (open_out (s ^ ".txt"));
       repl ()
     | Error -> 
       print_endline ("Error");
@@ -90,7 +67,7 @@ let make_password username password =
   let () =
     let oc = open_out "login.txt" in   
       fprintf oc "%s\n" (username);  
-      fprintf oc "%s\n" (password);  
+      fprintf oc "%s\n" (password);   
       close_out oc in 
     try
     let () = print_string ("\n\nType /help to get a list of commands\n") in
@@ -119,12 +96,12 @@ let rec check_password_helper (password : string) (file : string) (dir : string)
       if next_file = file then let ic = open_in next_file in
           try 
             let line1 = input_line ic in  
-              let line2 = input_line ic in 
-              let password_correct = password = line2 in 
-              close_in ic; password_correct
+            let line2 = input_line ic in 
+            let password_correct = password = line2 in 
+            close_in ic; password_correct
           with e ->
-              close_in_noerr ic;
-              raise e            
+            close_in_noerr ic;
+            raise e            
       else check_password_helper password file dir handler
   with
   | _ -> Unix.closedir handler; false
@@ -163,7 +140,8 @@ let rec prompt_for_password () =
           | _ ->         
             state_ref := {!state_ref with username = username};
             Lwt_main.run (Lwt.join [(start_server ()); repl ()]) 
-        else print_endline "Incorrect password.\n";
+        else 
+          print_endline "Incorrect password.\n";
           prompt_for_password ()
           | _ -> failwith "should never get here"
   end
@@ -186,3 +164,5 @@ let main () =
   end
 
 let () =  main ()
+
+(*Implement friends *)
