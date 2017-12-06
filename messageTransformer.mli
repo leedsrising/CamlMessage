@@ -1,6 +1,5 @@
 (* An [MessageTransformer] takes in messages and does something to the message,
  * including spellchecking and replacing shortcuts *)
-module type MessageTransformer = sig
 
     (* The type of a message *)
     type msg
@@ -23,4 +22,4 @@ module type MessageTransformer = sig
     (* [depm] decyrpts a message *)
     val depm : msg -> msg
 
-end
+    val lines_in_file : string -> string list
