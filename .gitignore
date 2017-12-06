@@ -2,4 +2,5 @@
 *.cmx
 *.cmi
 *.byte
+login.txt
 _build
