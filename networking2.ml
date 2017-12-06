@@ -17,6 +17,8 @@ let connections = ref []
 
 let listeners = ref []
 
+let get_running_port = !running_port
+
 let to_ip_port saddr =
   match saddr with 
   | Lwt_unix.ADDR_INET (ip, port) -> (Unix.string_of_inet_addr ip, port)
@@ -101,16 +103,17 @@ let rec do_connect ip port =
   connect sock (Lwt_unix.ADDR_INET (addr, port)) >>=
   make_connection sock {ip=ip; port=port;fd=sock}
 
+let send_uni_cmd ip port cmd_msg = 
+  do_connect ip port >>=
+  fun net_state -> 
+    return (net_state := {!net_state with out_buffer = 
+    Some (cmd_msg);})
+
 let send_friend_req ip port from_name = 
   do_connect ip port >>=
   fun net_state -> 
     return (net_state := {!net_state with out_buffer = 
     Some ("friendreq " ^ from_name ^ " " ^ (string_of_int !running_port));})
-
-let send_friend_accpt ip port from_name = 
-  do_connect ip port >>=
-    fun net_state -> 
-      return (net_state := {!net_state with out_buffer = Some ("friendaccept " ^ from_name);})
 
 let register_read_listener listener = 
   listeners := listener :: !listeners 

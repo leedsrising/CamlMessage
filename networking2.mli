@@ -3,6 +3,10 @@ type net_state = {out_buffer:string option ; do_close:bool; addr:conn_addr}
 
 (* A [NetworkEngine] facilitates communication among several clients. Handles    
  * the sending of messages and statuses to and from clients. *)
+
+
+val get_running_port : int
+
 val to_ip_port : Lwt_unix.sockaddr -> string * int
 
 val handle_write: 'a Lwt_io.channel ->
@@ -22,15 +26,13 @@ val make_connection: Lwt_unix.file_descr -> conn_addr -> unit -> net_state ref L
 
 val do_connect: string -> int -> net_state ref Lwt.t
 
-val send_friend_req: string -> int -> string -> unit Lwt.t
+val send_uni_cmd: string -> int -> string -> unit Lwt.t
 
-val send_friend_accpt: string -> int -> string -> unit Lwt.t
+val send_friend_req: string -> int -> string -> unit Lwt.t
 
 val register_read_listener: (net_state ref -> string -> unit) -> unit
 
 val start_server: unit -> 'a Lwt.t
-
-val send_friend_accpt: string -> int -> string -> unit Lwt.t
 
 
 
