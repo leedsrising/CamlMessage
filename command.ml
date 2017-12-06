@@ -83,5 +83,7 @@ let parse str =
     if List.length split - 1 >= cmd.min_args then
       try (cmd.builder split) with e -> invalid_usage cmd
     else 
-      invalid_usage cmd
+      if String.get trimmed 0 = '/' then
+        invalid_usage cmd (*TODO: handle message *)
+      else  invalid_usage cmd
   | None -> Error

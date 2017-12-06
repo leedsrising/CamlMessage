@@ -44,7 +44,6 @@ let rec repl () =
    state_ref := do' (parse input) !state_ref;
     match parse input with
     | Talk intended -> 
-      print_endline ("talking to " ^ intended);
       repl ()
     | Friend intended -> 
       print_endline ("Friend");

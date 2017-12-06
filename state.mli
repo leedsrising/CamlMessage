@@ -1,6 +1,6 @@
 type person = {
-  id : string;
   name : string;
+  id : string;
   port : int;
   }
   
@@ -10,6 +10,7 @@ type state = {
   status : string;
   friends_list : person list;
   messages : (person * string list) list;
+  convo_requests : person list;
   current_person_being_messaged : person option;
   requests: person list;
   dictionary : string list;
