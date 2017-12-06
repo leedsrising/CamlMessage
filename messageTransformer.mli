@@ -2,7 +2,7 @@
  * including spellchecking and replacing shortcuts *)
 
     (* The type of a message *)
-    type msg
+    type msg = string 
     (* The type of a word *)
     type word
     (* The type of a dictionary *)
@@ -23,5 +23,4 @@
     val depm : msg -> msg
 
     val lines_in_file : string -> string list
-
     val make_dict : string -> dict
