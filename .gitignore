@@ -2,5 +2,6 @@
 *.cmx
 *.cmi
 *.byte
+*.DS_Store
 login.txt
 _build
