@@ -9,34 +9,6 @@ open Networking2
 open Lwt
 open Printf
 
-(* [talking_repl state] is the repl that the user enters when they are
- * currently in a conversation. The user can leave the conversation, add a
- * shortcut, and define a new word, but none of the other functions will
- * do anything
- *)
-(* let rec talking_repl  messages = 
-  let input = read_line () in
-  let new_state = do' (parse input) ! in
-  match parse input with
-  | Quit -> return_unit
-  | Leave_conversation -> 
-    print_endline ("Leave_conversation");
-    repl  ()
-  | Add_shortcut intended -> 
-    print_endline ("Add_shortcut");
-    talking_repl new_state messages
-  | Define intended -> 
-    print_endline ("Define");
-    talking_repl new_state messages
-  | Error -> 
-    print_endline ("Error");
-    talking_repl state messages
-  | _ -> talking_repl state messages *)
-
-(* [repl state] is the main repl that the user enters when they are
- * not in a conversation. The user can do any of the commmands presented.
- *)
-
 let rec repl () =
   Lwt_io.print "> " >>=
   fun () -> Lwt_io.read_line Lwt_io.stdin >>= 
@@ -92,7 +64,7 @@ let make_password username password =
       fprintf oc "%s\n" (password);  
       close_out oc in 
     try
-    let () = print_string ("\n\nType /help to get a list of commands\n") in
+    let () = print_string ("\n\nHello " ^ username ^ "! Type /help to get a list of commands\n") in
       state_ref := {!state_ref with username = username };
       Lwt_main.run (Lwt.join [(start_server ()); repl ()]) 
     with
@@ -137,7 +109,7 @@ let rec get_username file dir handler =
             let username = line1 in
             close_in ic; username
         with e ->
-          close_in_noerr ic;
+          close_in_noerr ic; print_endline "Hi";
           raise e            
       else get_username file dir handler
   with
@@ -153,9 +125,10 @@ let rec prompt_for_password () =
     match read_line () with
     | input -> let d_handle = Unix.getcwd () |> Unix.opendir in
       let password_matches = check_password_helper input ("login.txt") (Unix.getcwd ()) d_handle in
-        if password_matches then let username = get_username "login.txt" (Unix.getcwd ()) d_handle in 
+        if password_matches then 
+        let username = get_username "login.txt" (Unix.getcwd ()) (Unix.getcwd () |> Unix.opendir) in 
           try
-            let () = print_string ("\n\nType /help to get a list of commands\n") in
+            let () = print_string ("\n\nHello " ^ username ^"! Type /help to get a list of commands\n") in
             state_ref := {!state_ref with username = username};
             Lwt_main.run (Lwt.join [(start_server ()); repl ()]) 
           with
