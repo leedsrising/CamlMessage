@@ -258,6 +258,7 @@ let handle_remote_cmd net_state msg =
   let cmd = List.hd split in
   match cmd with 
   | "friendreq" -> 
+    print_endline msg;
     let name = (List.nth split 1) in
     state_ref := add_friend_req name !net_state.addr.ip 
       (int_of_string (List.nth split 2)) !state_ref;

@@ -119,7 +119,7 @@ let rec get_username file dir handler =
           raise e            
       else get_username file dir handler
   with
-  | _ -> Unix.closedir handler; "no username"
+  | e -> Unix.closedir handler; "bob_invalid"
 
   (* [prompt_for_password] prompts the user for their password then 
    * checks the given password against the data stored in "login.txt"
