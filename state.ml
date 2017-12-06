@@ -1,5 +1,6 @@
 open Command
 open Networking2
+open MessageTransformer
 
 (* [id] represents the identification of someone through their IP *)
 
@@ -15,10 +16,77 @@ type state = {
   friends_list : person list;
   messages : (person * string list) list;
   current_person_being_messaged : person option;
-  requests: person list;
-  dictionary : string list;
-  shortcut_list : (string * string) list
+  requests: person list
   }
+
+let rec lines_in_file_helper (c : in_channel) (acc : string list) =
+  try
+    lines_in_file_helper c ((c |> input_line) :: acc)
+  with
+  | _ -> close_in c; acc
+
+let lines_in_file (file : string) =
+  let channel = file |> open_in in
+  lines_in_file_helper channel []
+
+let person_to_string (p: person) =
+  p.name ^ p.id ^ (string_of_int p.port) ^ "\n"
+
+(* adds a list of persons to the text file *)
+let rec adding_friends (c:out_channel) = function
+| [] -> close_out c
+| x :: xs -> output_string c (person_to_string x); flush c; adding_friends c xs
+
+(*String is of the form name ip port*)
+let string_to_friend str =
+  let s = String.trim str in
+  let first_space = String.index s ' ' in
+  let name = Str.string_before s first_space in
+  let after_name = Str.string_after s first_space in
+  let second_space = String.index after_name ' ' in
+  let ip = Str.string_before s second_space in
+  let port = Str.string_after s second_space in
+  {id = ip; name = name; port = int_of_string port}
+
+let friends_in_file (file : string) : person list=
+  let line_lst = lines_in_file file in 
+  let string_version = List.fold_left (fun lst elt -> elt :: lst) [] line_lst in
+  List.map (string_to_friend) string_version
+
+(* [add_shortcut sc phrase] adds a user defined shortcut
+* into the file "shortcut.txt" *)
+let add_friend_to_txt (friend : string) (id: string) (port: int) =
+  let friend_person = {name = friend; id = id; port = port} in
+  let orig_lst = "friends.txt" |> friends_in_file in
+  let new_list = (friend_person)::orig_lst in
+  let c = "friends.txt" |> open_out in
+  adding_friends c new_list
+
+let rec lst_remove ele lst accum =
+  match lst with
+  | [] -> accum
+  | x::xs -> 
+    if x.name = ele then lst_remove ele lst accum
+    else lst_remove ele lst (x::accum)
+
+(* [add_shortcut sc phrase] adds a user defined shortcut
+* into the file "shortcut.txt" *)
+let remove_friend (friend : string) =
+  let orig_lst = "friends.txt" |> friends_in_file in
+  let new_list = lst_remove friend orig_lst [] in
+  let c = "friends.txt" |> open_out in
+  adding_friends c new_list
+
+let print_messages line_lst =
+  List.fold_left (fun acc ele -> ele ^ "\n" ^ acc) "" line_lst
+
+let get_messages_for_friend (friend : string) =
+  lines_in_file (friend ^ ".txt") 
+
+let rec get_total_messages_lst friends_list accum =
+  match friends_list with
+  | [] -> accum
+  | x::xs -> get_total_messages_lst xs ((x, (get_messages_for_friend x.name))::accum)
 
 (* [init_state j] takes in the initial login information of the user and 
  * initilizes the program based on that information *)
@@ -26,12 +94,10 @@ let init_state (name: string) : state =
   {
     username = name;
     status = "";
-    friends_list = [(*access from txt file stored in computer*)];
-    messages = [(*access from txt file stored in computer*)];
+    friends_list = friends_in_file "friends.txt";
+    messages = get_total_messages_lst (friends_in_file "friends.txt") [];
     current_person_being_messaged = None;
-    requests = [(*access from networking*)];
-    dictionary = [(*access*)];
-    shortcut_list = []
+    requests = []
   }
 
 let state_ref = ref (init_state "")
@@ -97,7 +163,7 @@ let chat_history s =
 (* [current_friends_to_string frnds accum] takes in the friends list of this 
  * user and returns the string version of their friends list
  *) 
- let rec current_shortcuts_to_string shrtcuts accum = 
+ (* let rec current_shortcuts_to_string shrtcuts accum = 
   match shrtcuts with
   | [] -> accum
   | (shrtcut, wrd)::xs -> 
@@ -109,7 +175,7 @@ let chat_history s =
  *) 
 let shortcuts s = 
   "Your current shortcuts are \n\n" ^ 
-    current_shortcuts_to_string s.shortcut_list ""
+    current_shortcuts_to_string s.shortcut_list "" *)
 
 let get_friend_req name st = 
   List.find_opt (fun friend -> friend.name = name) st.requests
@@ -216,18 +282,18 @@ let pre_message_friend (friend:person) (st:state) : state =
 (* [add_shortcut shortcut word st] returns the new state with the current user's status
  * set to intended
  *)
- let add_shortcut (shortcut:string) (word:string) (st:state) : state =
+ (* let add_shortcut (shortcut:string) (word:string) (st:state) : state =
   { st with
     shortcut_list = ((shortcut, word)::st.shortcut_list)
-  }
+  } *)
 
 (* [add_shortcut shortcut word st] returns the new state with the current user's status
  * set to intended
  *)
- let define (word:string) (st:state) : state =
+ (* let define (word:string) (st:state) : state =
   { st with
     dictionary = ((word)::st.dictionary)
-  }
+  } *)
 
 (* [do' cmd st] changes the state according to a command. See details in
  * state.mli 
@@ -237,12 +303,13 @@ let do' cmd st =
     match cmd with
     | Talk intended -> (* pre_message_friend intended st *) st
     | Friend (ip, port) -> request_friend ip port st
+    | Message_history friend -> st
     | Quit -> st
     | Friends_list -> st
     | Leave_conversation -> st
     | Unfriend intended -> remove_friend intended st
-    | Add_shortcut (shortcut, word) -> add_shortcut shortcut word st
-    | Define intended -> define intended st
+    | Add_shortcut (shortcut, word) -> failwith "todo"(*add_shortcut shortcut word st*)
+    | Define intended -> failwith "todo"
     | Setstatus intended -> set_status intended st
     | View_requests -> st
     | Accept username -> accept_friend_req username st
@@ -260,13 +327,18 @@ let handle_remote_cmd net_state msg =
   | "friendreq" -> 
     print_endline msg;
     let name = (List.nth split 1) in
+    let ip = !net_state.addr.ip in
+    let port = int_of_string (List.nth split 2) in
     state_ref := add_friend_req name !net_state.addr.ip 
       (int_of_string (List.nth split 2)) !state_ref;
     print_endline ("You have received a friend request from " ^ name);
     net_state := {!net_state with do_close = true};
   | "friendaccept" -> 
     let name = (List.nth split 1) in
+    let ip = !net_state.addr.ip in
+    let port = !net_state.addr.port in
     state_ref := add_friend name !net_state.addr.ip !net_state.addr.port !state_ref;
+    add_friend_to_txt name ip port;
     print_endline (name ^ " has accepted your friend request!");
     net_state := {!net_state with do_close = true};
   | _ -> failwith "Unexpected Remote Command: Use the latest version."

@@ -11,9 +11,7 @@ type state = {
   friends_list : person list;
   messages : (person * string list) list;
   current_person_being_messaged : person option;
-  requests: person list;
-  dictionary : string list;
-  shortcut_list : (string * string) list
+  requests: person list
   }
 
 (* [current_friends s] takes in the current state of this user and returns
@@ -63,7 +61,7 @@ val chat_history : state -> string
 (* [shortcuts s] takes in the state list of this user and returns the 
  * string version of their current shortcuts
  *) 
-val shortcuts : state -> string
+(* val shortcuts : state -> string *)
 
 (* [add_friend friend st] returns the new state with [friend] added onto
  * this user's friends list
@@ -104,12 +102,12 @@ val set_status : string -> state -> state
 (* [add_shortcut shortcut word st] returns the new state with the current user's status
  * set to intended
  *)
-val add_shortcut : string -> string -> state -> state
+(* val add_shortcut : string -> string -> state -> state *)
 
 (* [add_shortcut shortcut word st] returns the new state with the current user's status
  * set to intended
  *)
-val define : string -> state -> state
+(* val define : string -> state -> state *)
 
 (* [handle_remote_cmd net_state msg] handles a command from a remote client so
  * that it can read what other users are doing (i.e. telling when another user
@@ -117,6 +115,9 @@ val define : string -> state -> state
  *)
 val handle_remote_cmd : Networking2.net_state ref -> string -> unit
 
+val print_messages : string list -> string
+
+val get_messages_for_friend : string -> string list
 
 
 

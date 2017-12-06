@@ -23,3 +23,5 @@
     val depm : msg -> msg
 
     val lines_in_file : string -> string list
+
+    val make_dict : string -> dict

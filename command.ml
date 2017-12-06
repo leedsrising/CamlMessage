@@ -4,7 +4,7 @@ open Lwt
  * If the user's request is not read as being one of the assigned commands, then it is
  * seen and treated as an error. 
  *)
-type command = Talk of string | Friend of (string*int) | Quit | Friends_list | Help |
+type command = Talk of string | Friend of (string*int) | Quit | Friends_list | Help | Message_history of string |
                 Leave_conversation | Unfriend of string| Add_shortcut of (string*string) | 
                 Define of string | Setstatus of string | View_requests | Accept of string | Error
 
