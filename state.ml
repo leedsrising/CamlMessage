@@ -461,15 +461,27 @@ let add_message_to_txt (msg: string) (name:string) =
 
 let handle_message msg ip =
   let st = !state_ref in
-    match st.current_person_being_messaged with
+  match st.talk_status with
+  | None -> ()
+  | One_to_one -> 
+    (match st.current_person_being_messaged with
     | None -> print_endline "failed auth1"; () (* #ignored *)
     | Some person ->
       if person.id = ip then (*TODO: better auth. *)
         (
           (* add_message_to_txt ("[" ^ person.name ^ "]: " ^ msg) person.name; *)
         print_message_formatted person.name msg) else
-        print_endline "failed auth2"
+        print_endline "failed auth2")
+  | GroupClient ->
+    (match st.group_host_remote with
+    | None -> print_endline "failed auth1"; () (* #ignored *)
+    | Some person ->
+      if person.id = ip then (*TODO: better auth. *)
+        (print_endline msg) else
+        print_endline "failed auth2")
+  | _ -> ()
 
+  
 (*TODO: remove definite *)
 let definite opt =
   match opt with
@@ -482,6 +494,8 @@ let handle_remote_cmd net_state msg =
   let length = String.length trimmed in
   if length > 4 && (String.sub trimmed 0 4) = "msg:" then
       (handle_message (String.sub trimmed 4 (length - 4)) !net_state.addr.ip) else
+  if length > 5 && (String.sub trimmed 0 5) = "gmsg:" then
+      (handle_message (String.sub trimmed 5 (length - 5)) !net_state.addr.ip) else
   let split = Str.split (Str.regexp " ") trimmed in
   let cmd = List.hd split in
   match cmd with
