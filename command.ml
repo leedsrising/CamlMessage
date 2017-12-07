@@ -65,6 +65,10 @@ let commands = [
 {name = "/addShortcut"; min_args = 2; desc = "Add a shortcut (abbrev.) for a word";
     usage = "/addShortcut <shortcut> <replacement>"; aliases = [];
     builder = (fun args -> Add_shortcut ((List.nth args 1), (List.nth args 2)))};
+
+{name = "/Message_history"; min_args = 1; desc = "Show message history with a friend";
+    usage = "/Message_history <friend> "; aliases = [];
+    builder = (fun args -> Message_history (List.nth args 1))};
 ]
 
 let command_help_message = "\n--- CamlMsg Help ---\n\n" ^ (List.fold_left (^) "" 

@@ -12,7 +12,7 @@ type state = {
   messages : (person * string list) list;
   convo_requests : person list;
   current_person_being_messaged : person option;
-  requests: person list
+  friend_requests: person list
   }
 
 (* [current_friends s] takes in the current state of this user and returns

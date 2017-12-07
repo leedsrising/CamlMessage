@@ -12,7 +12,6 @@ open Printf
 (* [repl state] is the main repl that the user enters when they are
  * not in a conversation. The user can do any of the commmands presented.
  *)
-
 let rec repl () = 
   Lwt_io.print "> " >>=
   fun () -> Lwt_io.read_line Lwt_io.stdin >>= 
@@ -20,39 +19,39 @@ let rec repl () =
    state_ref := do' (parse input) !state_ref;
     match parse input with
     | Talk intended -> 
+      print_endline ("Chat request sent \n");
       repl ()
     | Friend intended -> 
-      print_endline ("Friend");
+      print_endline ("Friend request sent \n");
       repl ()
     | Quit -> return_unit
     | Friends_list -> 
-      print_endline ("Friends_list");
+      print_endline ("Friends_list \n");
       print_endline (current_friends !state_ref);
       repl  ()
     | Leave_conversation -> 
-      print_endline ("Leave_conversation");
+      print_endline ("Leave_conversation \n");
       repl ()
     | Unfriend intended -> 
-      remove_friend intended;
+      print_endline ("Unfriended " ^ intended ^ "\n");
       repl ()
     | Add_shortcut intended -> 
-      print_endline ("Add_shortcut");
+      print_endline ("Add_shortcut \n");
       repl ()
     | Define intended -> 
-      print_endline ("Define");
+      print_endline ("Define \n");
       repl ()
     | Setstatus intended -> 
-      print_endline ("Setstatus");
-      repl ()
+      print_endline ("Setstatus \n");
+      repl () (**)
     | Message_history intended -> 
-      print_messages (get_messages_for_friend intended);
       repl ()
     | View_requests -> 
-      print_endline ("View_requests");
+      print_endline ("Current Requests \n");
       print_endline (current_requests !state_ref);
       repl ()
     | Accept s -> 
-      print_endline ("Accept Req");
+      print_endline ("Accept Request \n");
       close_out (open_out (s ^ ".txt"));
       repl ()
     | Message m ->
