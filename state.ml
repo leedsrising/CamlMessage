@@ -6,12 +6,14 @@ open MessageTransformer
 
 type talk_status = None | One_to_one | GroupClient | GroupServer
 
+(* [person] is the type of a person containing their name, ip address and port *)
 type person = {
   name : string;
   id : string;
   port : int;
 }
 
+(* [state] holds all of the information about an instance of the program *)
 type state = {
   username: string;
   status : string;
@@ -29,32 +31,38 @@ type state = {
   spellcheck : bool
   }
 
+(* [lines_in_file_helper c acc] is a helper method that accesses each line in a .txt file *)
 let rec lines_in_file_helper (c : in_channel) (acc : string list) =
   try
     lines_in_file_helper c ((c |> input_line) :: acc)
   with
   | _ -> close_in c; acc
 
+(* [lines_in_file file] is a string list containing each line of a file 
+ * as an entry in the list 
+ *)
 let lines_in_file (file : string) =
   let channel = file |> open_in in
   lines_in_file_helper channel []
 
+(* [person_to_string p] represents a person object as a string *)
 let person_to_string (p: person) =
   p.name ^ " " ^ p.id ^ " " ^(string_of_int p.port) ^ "\n"
 
+(* [print_message_formatted from msg] formats a message [msg] from sender [from] and prints it*)
 let print_message_formatted from msg = 
   print_endline ("[" ^ from ^ "]: " ^ msg)
 
-(* adds a list of persons to the text file *)
+(* [adding_friends c] adds a list of persons to the text file *)
 let rec adding_friends (c:out_channel) = function
 | [] -> close_out c
 | x :: xs -> output_string c (person_to_string x); flush c; adding_friends c xs
 
-(*String is of the form name ip port*)
+(* [string_to_friend str] is a string of the form name ip port*)
 let string_to_friend str =
   let str_list = String.split_on_char ' ' str in
   {id = List.nth str_list 1; name = List.hd str_list; port = int_of_string (List.nth str_list 2)}
-
+(* [friends_in_file file] is a person list of all friends in a file*)
 let rec friends_in_file (file : string) : person list=
   let line_lst = lines_in_file file in
   let rec print_lines lines acc =
@@ -212,6 +220,7 @@ let remove_friend_req name st =
 let add_friend name ip port st =
   {st with friends_list = {id=ip; port=port; name=name} :: st.friends_list }
 
+(* [accept_friend_req name st] accepts a friend request from [name] and returns a new state *)
 let accept_friend_req name st =
   match get_friend_req name st with
   | None ->
@@ -224,10 +233,12 @@ let accept_friend_req name st =
     st |> add_friend friend.name friend.id friend.port
        |> remove_friend_req name end
 
+(* [add_friend_req name ip port st] adds the incoming friend request to the state *)
 let add_friend_req name ip port st =
   {st with friend_requests = {id=ip; port=port; name=name;} 
     :: st.friend_requests}
 
+(* [encrypt_messages boolean key st] toggles the encrypting of messages by updating state *)
 let encrypt_messages (boolean: string ) (key: string ) (st:state) = 
   try 
     { st with
@@ -236,14 +247,12 @@ let encrypt_messages (boolean: string ) (key: string ) (st:state) =
     }
   with 
   | e -> st
-
+(*[encrypt msg] encrypts a message msg*)
 let encrypt msg = 
   if !state_ref.encrypt then MessageTransformer.pm msg else msg
 
 let add_convo_req name st =
   {st with convo_requests = name :: st.convo_requests}
-
-(*TODO: remove/fix print *)
 
 (* [friend_removed friend friends accum] is a helper for [remove_friend]
  * that removes [friend] from [friends]
