@@ -347,8 +347,9 @@ let send_message message st =
     (match st.group_host_remote with
     | None -> print_endline "Error: Missing group host"; st
     | Some host -> 
-      print_message_formatted st.username message;
-      ignore(send_cmd host.id host.port ("gmsg:" ^ (message|> encrypt |>send))); st)
+      (* print_message_formatted st.username message; *)
+      ignore(send_cmd host.id host.port ("gmsg:[" ^ st.username ^ "]: " 
+      ^ (message|> encrypt |>send))); st)
   | GroupServer -> print_message_formatted st.username message;
     send_chat_to_all_clients st.username message st
     
