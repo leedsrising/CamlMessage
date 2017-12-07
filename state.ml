@@ -288,13 +288,16 @@ let check_confirm_convo_with friend st =
   else 
     (ignore (send_cmd friend.id friend.port "convobusy"); st)
 
+let clean_up_after_convo st = 
+  {st with talk_status = None;
+    current_person_being_messaged = None;
+    group_host_remote = None}
+
 let disconnect_from (person_opt: person option) st =
   match person_opt with
   | None -> st
   | Some person -> close person.id person.port;
-    {st with talk_status = None;
-      current_person_being_messaged = None;
-      group_host_remote = None}
+    clean_up_after_convo st
 
 let terminate_group_server st = 
   (List.fold_left (fun () client ->
@@ -517,7 +520,7 @@ let handle_disconnect net_state =
   | None -> ()
   | Some person -> if person.id = !net_state.addr.ip
     then print_endline (person.name ^ " has disconnected.");
-    state_ref := {!state_ref with current_person_being_messaged = None}
+    state_ref := clean_up_after_convo st
 
 
 (* register listeners in networking *)
