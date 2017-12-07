@@ -548,8 +548,8 @@ let handle_remote_cmd net_state msg =
     state_ref := set_in_group_with friend !state_ref
   | "groupbusy" ->  (* accepted convo but host is gone *)
     let friend = (definite (get_friend_by_ip !net_state.addr.ip !state_ref)) in
-    print_endline ("Unfortunately, " ^ friend.name ^ " is no longer 
-      hosting that conversation.");
+    print_endline ("Unfortunately, " ^ friend.name ^ " is no longer hosting" ^ 
+    "that conversation.");
   | _ -> failwith "Unexpected Remote Command: Use the latest version."
 
 let handle_disconnect net_state =
