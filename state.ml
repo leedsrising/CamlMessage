@@ -17,7 +17,9 @@ type state = {
   messages : (person * string list) list;
   convo_requests : person list;
   current_person_being_messaged : person option;
-  friend_requests: person list
+  friend_requests: person list;
+  encrypt: bool;
+  encrypt_key : int 
   }
 
 let rec lines_in_file_helper (c : in_channel) (acc : string list) =
@@ -96,7 +98,9 @@ let rec get_total_messages_lst friends_list accum =
     messages = [(*access from txt file stored in computer*)];
     convo_requests = [];
     current_person_being_messaged = None;
-    friend_requests = []
+    friend_requests = [];
+    encrypt = false;
+    encrypt_key = 0
   }
 
 let state_ref = ref (init_state "")
@@ -202,6 +206,18 @@ let add_friend_req name ip port st =
   {st with friend_requests = {id=ip; port=port; name=name;} 
     :: st.friend_requests}
 
+let encrypt_messages (boolean: string ) (key: string ) (st:state) = 
+  try 
+    { st with
+    encrypt = bool_of_string boolean;
+    encrypt_key = int_of_string key
+    }
+  with 
+  | e -> st
+
+let encrypt msg = 
+  if !state_ref.encrypt then MessageTransformer.pm msg else msg
+
 let add_convo_req name st =
   {st with convo_requests = name :: st.convo_requests}
 
@@ -284,7 +300,7 @@ let leave_convo st =
     | None -> print_endline ("Error: You aren't in a conversation.\n"
       ^ "Type /help for commands."); st
     | Some friend -> (* TODO: Update state with message *)
-      ignore(send_cmd friend.id friend.port ("msg:" ^ (message|>send))); st
+      ignore(send_cmd friend.id friend.port ("msg:" ^ (message|> encrypt |>send))); st
 
 
 (* [clear_messages st] returns the new state with the current user's messages
@@ -311,6 +327,7 @@ let do' cmd st =
     | Clear_history friend -> clear_messages friend; st
     | Quit -> st
     | Friends_list -> st
+    | Encrypt_messages (boolean, key) -> encrypt_messages boolean key st
     | Leave_conversation -> leave_convo st
     | Unfriend intended ->remove_friend_txt intended; remove_friend intended st
     | Add_shortcut (shortcut, word) -> st
@@ -336,7 +353,6 @@ let rec messages_in_file (file : string) : string list=
 (* [add_shortcut sc phrase] adds a user defined shortcut
 * into the file "shortcut.txt" *)
 let add_message_to_txt (msg: string) (name:string) =
-  let () = print_endline "got here add message" in
   let orig_lst = name ^ ".txt" |> messages_in_file in
   let new_list = msg::orig_lst in
   let c = name ^ ".txt" |> open_out in
