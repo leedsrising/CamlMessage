@@ -304,12 +304,8 @@ let leave_convo st =
     | None -> print_endline ("Error: You aren't in a conversation.\n"
       ^ "Type /help for commands."); st
     | Some friend -> (* TODO: Update state with message *)
-<<<<<<< HEAD
       print_message_formatted st.username message;
-      ignore(send_cmd friend.id friend.port ("msg:" ^ (message|>send))); st
-=======
       ignore(send_cmd friend.id friend.port ("msg:" ^ (message|> encrypt |>send))); st
->>>>>>> c74451929646a750c418c1b7f0b49c373773b494
 
 
 (* [clear_messages st] returns the new state with the current user's messages
