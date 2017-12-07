@@ -24,8 +24,6 @@ val create_socket: Lwt_unix.inet_addr -> int -> unit -> Lwt_unix.file_descr * in
 
 val make_connection: Lwt_unix.file_descr -> conn_addr -> unit -> net_state ref Lwt.t
 
-val do_connect: string -> int -> net_state ref Lwt.t
-
 (* val send_uni_cmd: string -> int -> string -> unit Lwt.t*)
 
 val close: string -> int -> unit

@@ -24,7 +24,7 @@ let rec repl () =
     | Friend intended -> 
       print_endline ("Friend request sent \n");
       repl ()
-    | Quit -> return_unit
+    | Quit -> exit 0; return_unit
     | Friends_list -> 
       print_endline ("Friends_list \n");
       print_endline (current_friends !state_ref);

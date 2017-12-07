@@ -113,15 +113,20 @@ let rec do_connect ip port =
   print_endline "doc2";
   let sock = socket PF_INET SOCK_STREAM 0 in
   print_endline "doc3";
-  connect sock (Lwt_unix.ADDR_INET (addr, port)) >>=
-  make_connection sock {ip=ip; port=port;fd=sock}
-
+  let timeout = Lwt_timeout.create 7 (fun () -> 
+  print_endline ("Error: Failed to connect to " ^ ip 
+  ^ ":" ^ (string_of_int port))) in
+    Lwt_timeout.start timeout;
+    connect sock (Lwt_unix.ADDR_INET (addr, port)) >>=
+    fun () -> return (Lwt_timeout.stop timeout) >>=
+    make_connection sock {ip=ip; port=port;fd=sock}
+  
 (* [send_uni_cmd ip port cmd_msg] connects to the socket at
  * [ip], [port] and sends the string [cmd_msg]*)
  let send_uni_cmd ip port cmd_msg =
-  do_connect ip port >>=
-  fun net_state ->
-    return (net_state := {!net_state with out_buffer = Some (cmd_msg);})
+  do_connect ip port >>= 
+    fun net_state -> 
+      return (net_state := {!net_state with out_buffer = Some (cmd_msg);})
 
 let send_cmd ip port cmd_msg =
   let conn_opt = List.assoc_opt (ip,port) !connections in
@@ -130,11 +135,10 @@ let send_cmd ip port cmd_msg =
       return (net_state := {!net_state with out_buffer = Some (cmd_msg);})
     | None -> send_uni_cmd ip port cmd_msg
 
+    (*TODO: refactor out *)
 let send_friend_req ip port from_name =
-  do_connect ip port >>=
-  fun net_state ->
-    return (net_state := {!net_state with out_buffer =
-    Some ("friendreq " ^ from_name ^ " " ^ (string_of_int !running_port));})
+  send_uni_cmd ip port 
+    ("friendreq " ^ from_name ^ " " ^ (string_of_int !running_port))
 
 let close ip port = 
   let ns_opt = List.assoc_opt (ip, port) !connections in
