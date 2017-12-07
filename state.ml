@@ -554,12 +554,21 @@ let handle_remote_cmd net_state msg =
 
 let handle_disconnect net_state =
   let st = !state_ref in
-  let talking_with_opt = st.current_person_being_messaged in
-  match talking_with_opt with
-  | None -> ()
-  | Some person -> if person.id = !net_state.addr.ip
-    then print_endline (person.name ^ " has disconnected.");
-    state_ref := clean_up_after_convo st
+  match st.talk_status with
+  | GroupClient -> (let host = st.group_host_remote in
+    match host with
+    | None -> ()
+    | Some person -> if person.id = !net_state.addr.ip
+      then print_endline ("You have been disconnected from the group.");
+      state_ref := clean_up_after_convo st)
+  | One_to_one ->  
+    (let talking_with_opt = st.current_person_being_messaged in
+    match talking_with_opt with
+    | None -> ()
+    | Some person -> if person.id = !net_state.addr.ip
+      then print_endline (person.name ^ " has disconnected.");
+      state_ref := clean_up_after_convo st)
+  | _ -> ()
 
 
 (* register listeners in networking *)
