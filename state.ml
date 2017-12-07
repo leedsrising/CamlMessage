@@ -40,18 +40,7 @@ let rec adding_friends (c:out_channel) = function
 
 (*String is of the form name ip port*)
 let string_to_friend str =
-  (* let s = String.trim str in
-  let first_space = String.index s ' ' in
-  let name = String.sub str 0 first_space in
-  let () = print_endline name in
-  let after_name = Str.string_after s (first_space + 1) in
-  let second_space = String.index after_name ' ' in
-  let ip = String.sub str (first_space + 1) (second_space - first_space) in
-  let () = print_endline ip in
-  let port = String.sub str (second_space + 1) (String.length str - second_space) in
-  let () = print_endline port in *)
   let str_list = String.split_on_char ' ' str in 
-  let () = print_endline (List.hd str_list);  print_endline (List.nth str_list 1); print_endline (List.nth str_list 2)in 
   {id = List.nth str_list 1; name = List.hd str_list; port = int_of_string (List.nth str_list 2)}
 
 let rec friends_in_file (file : string) : person list=
@@ -59,10 +48,8 @@ let rec friends_in_file (file : string) : person list=
   let rec print_lines lines acc =
   match lines with
   | [] -> acc
-  | x::xs -> let () = print_endline x in print_lines xs (string_to_friend x :: acc)
+  | x::xs -> print_lines xs (string_to_friend x :: acc)
   in print_lines line_lst []
-  (*let string_version = List.fold_left (fun lst elt -> elt :: lst) [] line_lst in *)
-  (* List.map string_to_friend line_lst *)
 
 (* [add_shortcut sc phrase] adds a user defined shortcut
 * into the file "shortcut.txt" *)
@@ -105,7 +92,7 @@ let rec get_total_messages_lst friends_list accum =
   {
     username = name;
     status = "";
-    friends_list = (try let () = (print_endline "got here :") in friends_in_file "friends.txt"; with e -> print_endline "error"; []);
+    friends_list = (try friends_in_file "friends.txt"; with e -> []);
     messages = [(*access from txt file stored in computer*)];
     convo_requests = [];
     current_person_being_messaged = None;
