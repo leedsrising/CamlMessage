@@ -31,7 +31,7 @@ let lines_in_file (file : string) =
   lines_in_file_helper channel []
 
 let person_to_string (p: person) =
-  p.name ^ p.id ^ (string_of_int p.port) ^ "\n"
+  p.name ^ " " ^ p.id ^ " " ^(string_of_int p.port) ^ "\n"
 
 (* adds a list of persons to the text file *)
 let rec adding_friends (c:out_channel) = function
@@ -40,19 +40,29 @@ let rec adding_friends (c:out_channel) = function
 
 (*String is of the form name ip port*)
 let string_to_friend str =
-  let s = String.trim str in
+  (* let s = String.trim str in
   let first_space = String.index s ' ' in
-  let name = Str.string_before s first_space in
-  let after_name = Str.string_after s first_space in
+  let name = String.sub str 0 first_space in
+  let () = print_endline name in
+  let after_name = Str.string_after s (first_space + 1) in
   let second_space = String.index after_name ' ' in
-  let ip = Str.string_before s second_space in
-  let port = Str.string_after s second_space in
-  {id = ip; name = name; port = int_of_string port}
+  let ip = String.sub str (first_space + 1) (second_space - first_space) in
+  let () = print_endline ip in
+  let port = String.sub str (second_space + 1) (String.length str - second_space) in
+  let () = print_endline port in *)
+  let str_list = String.split_on_char ' ' str in 
+  let () = print_endline (List.hd str_list);  print_endline (List.nth str_list 1); print_endline (List.nth str_list 2)in 
+  {id = List.nth str_list 1; name = List.hd str_list; port = int_of_string (List.nth str_list 2)}
 
-let friends_in_file (file : string) : person list=
+let rec friends_in_file (file : string) : person list=
   let line_lst = lines_in_file file in 
-  let string_version = List.fold_left (fun lst elt -> elt :: lst) [] line_lst in
-  List.map (string_to_friend) string_version
+  let rec print_lines lines acc =
+  match lines with
+  | [] -> acc
+  | x::xs -> let () = print_endline x in print_lines xs (string_to_friend x :: acc)
+  in print_lines line_lst []
+  (*let string_version = List.fold_left (fun lst elt -> elt :: lst) [] line_lst in *)
+  (* List.map string_to_friend line_lst *)
 
 (* [add_shortcut sc phrase] adds a user defined shortcut
 * into the file "shortcut.txt" *)
@@ -72,7 +82,7 @@ let rec lst_remove ele lst accum =
 
 (* [add_shortcut sc phrase] adds a user defined shortcut
 * into the file "shortcut.txt" *)
-let remove_friend (friend : string) =
+let remove_friend_txt (friend : string) =
   let orig_lst = "friends.txt" |> friends_in_file in
   let new_list = lst_remove friend orig_lst [] in
   let c = "friends.txt" |> open_out in
@@ -91,11 +101,11 @@ let rec get_total_messages_lst friends_list accum =
 
 (* [init_state j] takes in the initial login information of the user and 
  * initilizes the program based on that information *)
-let init_state (name: string) : state =
+ let init_state (name: string) : state =
   {
     username = name;
     status = "";
-    friends_list = [(*access from txt file stored in computer*)];
+    friends_list = (try let () = (print_endline "got here :") in friends_in_file "friends.txt"; with e -> print_endline "error"; []);
     messages = [(*access from txt file stored in computer*)];
     convo_requests = [];
     current_person_being_messaged = None;
@@ -214,6 +224,7 @@ let accept_friend_req name st =
   | Some friend -> begin
     ignore (send_uni_cmd friend.id friend.port ("friendaccept " ^ st.username 
     ^ " " ^ (string_of_int get_running_port))); 
+    add_friend_to_txt friend.name friend.id friend.port;
     st |> add_friend friend.name friend.id friend.port 
        |> remove_friend_req name end
     
