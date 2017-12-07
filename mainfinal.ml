@@ -9,6 +9,10 @@ open Networking2
 open Lwt
 open Printf
 
+(* [repl state] is the main repl that the user enters when they are
+ * not in a conversation. The user can do any of the commmands presented.
+ *)
+
 let rec repl () =
   Lwt_io.print "> " >>=
   fun () -> Lwt_io.read_line Lwt_io.stdin >>= 
@@ -29,7 +33,7 @@ let rec repl () =
       print_endline ("Leave_conversation");
       repl ()
     | Unfriend intended -> 
-      print_endline ("Unfriend");
+      remove_friend intended;
       repl ()
     | Add_shortcut intended -> 
       print_endline ("Add_shortcut");
@@ -40,12 +44,16 @@ let rec repl () =
     | Setstatus intended -> 
       print_endline ("Setstatus");
       repl ()
+    | Message_history intended -> 
+      print_messages (get_messages_for_friend intended);
+      repl ()
     | View_requests -> 
       print_endline ("View_requests");
       print_endline (current_requests !state_ref);
       repl ()
-    | Accept _ -> 
+    | Accept s -> 
       print_endline ("Accept Req");
+      close_out (open_out (s ^ ".txt"));
       repl ()
     | Error -> 
       print_endline ("Error");
@@ -61,7 +69,7 @@ let make_password username password =
   let () =
     let oc = open_out "login.txt" in   
       fprintf oc "%s\n" (username);  
-      fprintf oc "%s\n" (password);  
+      fprintf oc "%s\n" (password);   
       close_out oc in 
     try
     let () = print_string ("\n\nHello " ^ username ^ "! Type /help to get a list of commands\n") in
@@ -90,12 +98,12 @@ let rec check_password_helper (password : string) (file : string) (dir : string)
       if next_file = file then let ic = open_in next_file in
           try 
             let line1 = input_line ic in  
-              let line2 = input_line ic in 
-              let password_correct = password = line2 in 
-              close_in ic; password_correct
+            let line2 = input_line ic in 
+            let password_correct = password = line2 in 
+            close_in ic; password_correct
           with e ->
-              close_in_noerr ic;
-              raise e            
+            close_in_noerr ic;
+            raise e            
       else check_password_helper password file dir handler
   with
   | _ -> Unix.closedir handler; false
@@ -115,6 +123,22 @@ let rec get_username file dir handler =
   with
   | e -> Unix.closedir handler; "bob_invalid"
 
+  let rec get_friends_list file dir handler = 
+    try
+      let next_file = handler |> Unix.readdir in
+        if next_file = file then 
+        let ic = open_in next_file in
+          try 
+            let line3 = input_line ic in  
+              let friends = line3 in
+              close_in ic; friends
+          with e ->
+            close_in_noerr ic;
+            raise e            
+        else get_username file dir handler
+    with
+    | e -> Unix.closedir handler; "bob_invalid"
+
   (* [prompt_for_password] prompts the user for their password then 
    * checks the given password against the data stored in "login.txt"
    *)
@@ -123,10 +147,11 @@ let rec prompt_for_password () =
     print_endline "Please enter your password.\n";
     print_string  "> ";
     match read_line () with
-    | input -> let d_handle = Unix.getcwd () |> Unix.opendir in
+    | input -> 
+      let d_handle = Unix.getcwd () |> Unix.opendir in
       let password_matches = check_password_helper input ("login.txt") (Unix.getcwd ()) d_handle in
-        if password_matches then 
-        let username = get_username "login.txt" (Unix.getcwd ()) (Unix.getcwd () |> Unix.opendir) in 
+        if password_matches 
+        then let username = get_username "login.txt" (Unix.getcwd ()) d_handle in 
           try
             let () = print_string ("\n\nHello " ^ username ^"! Type /help to get a list of commands\n") in
             state_ref := {!state_ref with username = username};
@@ -135,7 +160,8 @@ let rec prompt_for_password () =
           | _ ->         
             state_ref := {!state_ref with username = username};
             Lwt_main.run (Lwt.join [(start_server ()); repl ()]) 
-        else print_endline "Incorrect password.\n";
+        else 
+          print_endline "Incorrect password.\n";
           prompt_for_password ()
           | _ -> failwith "should never get here"
   end
@@ -147,6 +173,9 @@ let main () =
   if password_exists
   then prompt_for_password ()
   else begin
+    let () =
+      let oc = open_out "friends.txt" in     
+        close_out oc in 
     print_endline "This is your first time. Please enter a username.\n";
     print_string  "> ";
     match read_line () with
@@ -158,3 +187,19 @@ let main () =
   end
 
 let () =  main ()
+
+(* let update_friends friend = 
+  let () =
+    let oc = open_out "friends.txt" in   
+      fprintf oc "%s\n" (username);  
+      fprintf oc "%s\n" (password);   
+      close_out oc in 
+    try
+    let () = print_string ("\n\nType /help to get a list of commands\n") in
+      state_ref := {!state_ref with friends = friend::(!state_ref.friends)};
+    with
+    | _ ->           
+      state_ref := {!state_ref with username = username };
+      Lwt_main.run (Lwt.join [(start_server ()); repl ()])  *)
+  
+

@@ -4,4 +4,7 @@
 *.byte
 *.DS_Store
 login.txt
+friends.txt
+userdef.txt
+shortcut.txt
 _build
