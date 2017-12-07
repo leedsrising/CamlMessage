@@ -42,12 +42,15 @@ let rec repl () =
       print_endline ("Define \n");
       repl ()
     | Setstatus intended -> 
-      print_endline ("Setstatus \n");
+      print_endline ("Status is now " ^ intended ^ "\n");
       repl ()
     | Message_history intended -> 
       repl ()
     | Clear_history intended -> 
       repl ()
+    | Encrypt_messages (boolean,key) -> if (String.equal (String.lowercase_ascii boolean) "true") then 
+      (print_endline ("Now encrypting messages with key: " ^ key ^ "\n"); repl ()) else 
+      (print_endline ("Not encrypting messages\n"); repl ())
     | View_requests -> 
       print_endline (current_requests !state_ref);
       repl ()

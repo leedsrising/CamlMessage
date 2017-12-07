@@ -14,7 +14,9 @@ type state = {
   convo_requests : person list;
   talk_status : talk_status;
   current_person_being_messaged : person option;
-  friend_requests: person list
+  friend_requests: person list;
+  encrypt: bool;
+  encrypt_key : int 
 }
 
 (* [current_friends s] takes in the current state of this user and returns

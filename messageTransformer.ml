@@ -1,14 +1,17 @@
 open Str
 open Unix
 open Suggest
+open Hashtbl
 
 (* represents a message *)
 type msg = string
 (* represents a word. NOTE: prewords and words are defined differently below. *)
 type word = string
 (* represents a dictionary.
- * NOTE: maybe reimplement using more efficient data structure later. *)
-type dict = string list
+ * Hash Table used for quickly searching for words and list dictionary used for encryption*)
+type dict =  string list 
+type hashDict = (string, unit) Hashtbl.t
+let dictionary = Hashtbl.create 1500
 
 (* [find_preword msg] finds the prewords in a given message. A preword
  * is any maximal length sequence of characters in a that does not contain
@@ -58,6 +61,11 @@ let split msg =
   let preword_lst = find_preword msg in
   (List.fold_left (fun lst elt -> (find_word elt) @ lst) [] preword_lst) |> List.rev
 
+let rec add_to_hashtble lst = 
+  match lst with 
+  | [] -> ()
+  | h::t -> Hashtbl.add dictionary h (); add_to_hashtble t
+
 (* [lines_in_file file] finds all the lines in a given file and
  * returns them as a string list. The newline characters at the end of each
  * line is already stripped out. *)
@@ -97,7 +105,8 @@ let shortcuts_in_file (file : string) =
 let rec dir_helper (file : string) (dir : string) (handler : dir_handle) =
   try
     let next_file = handler |> Unix.readdir in
-    if next_file = file then words_in_file next_file
+    if next_file = file then let listDict = (words_in_file next_file) in 
+      add_to_hashtble listDict; listDict
     else dir_helper file dir handler
   with
   | _ -> Unix.closedir handler; []
@@ -125,6 +134,7 @@ let rec flush_list (c:out_channel) = function
 
 (* [add_word w] adds a user defined word into the file "userdef.txt" *)
 let add_word (w:word) =
+  Hashtbl.add dictionary w ();
   let orig_lst = "userdef.txt" |> words_in_file in
   let new_list = w::orig_lst in
   let c = "userdef.txt" |> open_out in
@@ -156,10 +166,10 @@ let ignore_word (w:word) =
  *          [is_valid "hallo"] = false *)
 let word_is_valid word (dict:dict) =
   let word' = String.lowercase_ascii word in
-  let rec word_is_valid_helper word = function
-  | [] -> false
-  | h::t -> if h = word then true else word_is_valid_helper word t
-  in word_is_valid_helper word' dict
+  try 
+    Hashtbl.find dictionary word'; true
+  with 
+  | e -> false
 
 (* [suggest word] gives suggestions for a word that is invalid.
  * example: [suggest "hallo"] = ["hello"] *)
