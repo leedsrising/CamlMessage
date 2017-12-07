@@ -1,8 +1,6 @@
 open Lwt
 open Str
 
-(* module Networking2 = struct *)
-
 let () = Lwt_log.add_rule "*" Lwt_log.Info
 
 let listen_address = Unix.inet_addr_loopback
@@ -19,7 +17,7 @@ let message_listeners = ref []
 
 let disconnect_listeners = ref []
 
-let get_running_port = !running_port
+let get_running_port () = !running_port
 
 let to_ip_port saddr =
   match saddr with
@@ -159,5 +157,3 @@ let start_server () =
   print_endline ("Started server on port " ^ string_of_int port);
   running_port := port;
   serve ()
-
-(* end *)

@@ -5,7 +5,7 @@ type net_state = {out_buffer:string option ; do_close:bool; addr:conn_addr}
  * the sending of messages and statuses to and from clients. *)
 
 
-val get_running_port : int
+val get_running_port : unit -> int
 
 val to_ip_port : Lwt_unix.sockaddr -> string * int
 
