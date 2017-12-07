@@ -28,18 +28,18 @@ let rec repl () =
     | Quit -> exit 0
     | Friends_list -> 
       let () = if (current_friends !state_ref) = "" then print_endline "You have no friends :(\n" 
-      else (print_endline ("Friends List \n");
-      print_endline ("\nYour current friends are: \n" ^ (current_friends !state_ref))); in 
+      else (print_endline ("\nFriends List: \n");
+      print_endline ("Your current friends are: \n" ^ (current_friends !state_ref))); in 
       repl  ()
     | Leave_conversation -> 
       repl ()
     | Unfriend intended -> 
       repl ()
     | Add_shortcut intended -> 
-      print_endline ("Add_shortcut \n");
+      print_endline ("Added shortcut for " ^ fst intended ^ "\n");
       repl ()
     | Define intended -> 
-      print_endline ("Define \n");
+      print_endline ("Added " ^ intended ^ " to dictionary\n");
       repl ()
     | Setstatus intended -> 
       print_endline ("Status is now " ^ intended ^ "\n");
@@ -58,7 +58,7 @@ let rec repl () =
       print_endline (current_requests !state_ref);
       repl ()
     | Accept s -> 
-      print_endline ("Accept Request \n");
+      print_endline ("Accepted friend request from " ^ s ^ "\n");
       close_out (open_out (s ^ ".txt"));
       repl ()
     | Message m ->
