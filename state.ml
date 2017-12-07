@@ -243,8 +243,6 @@ let encrypt msg =
 let add_convo_req name st =
   {st with convo_requests = name :: st.convo_requests}
 
-(*TODO: remove/fix print *)
-
 (* [friend_removed friend friends accum] is a helper for [remove_friend]
  * that removes [friend] from [friends]
  *)

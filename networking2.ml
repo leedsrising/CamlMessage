@@ -24,11 +24,12 @@ let to_ip_port saddr =
   | Lwt_unix.ADDR_INET (ip, port) -> (Unix.string_of_inet_addr ip, port)
   | _ -> failwith "bad saddr type"
 
-(* universal writer *)
+(* [handle_write ic oc st_r] writes messages stored in its write buffer
+ * which is [st_r] to [oc] until it is signalled to stop with do_close = true. *)
 let rec handle_write ic oc st_r () = 
   (match !st_r.out_buffer with
   | None -> return_unit
-  | Some s -> print_endline ("writing: " ^ s);
+  | Some s -> 
     begin st_r := {!st_r with out_buffer = None};
     Lwt_io.write_line oc s >>= fun () -> Lwt_io.flush oc end) >>=
     fun () -> Lwt_unix.sleep 0.5 >>= fun () ->
@@ -38,18 +39,21 @@ let rec handle_write ic oc st_r () =
       return (Lwt_unix.shutdown !st_r.addr.fd Lwt_unix.SHUTDOWN_ALL)
     | false -> handle_write ic oc st_r () (*connection remains open *)
 
-  (* TODO: check for thread problems here *)
+(* [handle_message msg st_r] calls the registered listeners in [listeners] with
+ * the received message [msg]. *)
 let handle_message msg st_r =
   ignore (List.map (fun (listener_fun:(net_state ref -> string -> unit)) ->
     listener_fun st_r msg) !message_listeners); return_unit
-    (* listener_fun !st_r.addr.ip !st_r.addr.port msg) !listeners); return_unit *)
 
+(* [handle_disconnect st_r] calls the registered listeners in 
+  [disconnect_listeners] after a disconnect has occurred. *)
 let handle_disconnect st_r =
   ignore (List.map (fun (listener_fun:(net_state ref -> unit)) ->
     listener_fun st_r) !disconnect_listeners); return_unit
-    (* listener_fun !st_r.addr.ip !st_r.addr.port msg) !listeners); return_unit *)
     
-(* universal reader *)
+(* [handle_read ic oc st_r] handle_read loops for as long as messages
+ * can be received from ic. Once ~EOF is received, it terminates and calls
+ * the registered disconnect listeners *)
 let rec handle_read ic oc st_r () =
   Lwt_io.read_line_opt ic >>=
   (fun msg ->
@@ -59,14 +63,17 @@ let rec handle_read ic oc st_r () =
         handle_disconnect st_r >>= fun () -> 
           Lwt_log.info "RConnection closed" >>= return)
 
+(* [handle_sock_error ns err] handles a socket error [err] associated with
+ * [ns] and requests it to disconnect. *)
 let handle_sock_error ns err = 
   Lwt_log.ign_error (Printexc.to_string err);
   ns := {!ns with do_close = true }
 
-(* accept incoming connecting to server *)
+(* [accept_connection conn] handles (for the server) an incoming 
+ * socket connection. It returns a net_state, used for dealing with the 
+ * socket in the future. *)
 let accept_connection conn =
   let open Lwt_unix in
-  print_endline "connection accepted";
   let fd, saddr = conn in
   let (ip, port) = to_ip_port saddr in
   let ic = Lwt_io.of_fd Lwt_io.Input fd in
@@ -77,13 +84,15 @@ let accept_connection conn =
   connections := ((ip, port), net_state) :: !connections;
   Lwt_log.info "New connection" >>= fun() -> return net_state
 
+(* [create_server sock] creates a server socket which accepts (loops)
+ * client sockets indefinitely. *)
 let create_server sock =
-  print_endline "server created";
   let rec serve () =
-      print_endline "serve";
       Lwt_unix.accept sock >>= accept_connection >>= fun _ -> serve ()
   in serve
 
+(* [create_socket ip_addr port] creates a server socket on the lowest port
+ * which is free and >= [port]. It returns the file descriptor and the port. *)
 let rec create_socket ip_addr port () =
   let open Lwt_unix in
   try let sock = socket PF_INET SOCK_STREAM 0 in
@@ -91,9 +100,9 @@ let rec create_socket ip_addr port () =
   listen sock backlog;
   (sock, port) with e -> create_socket ip_addr (port + 1) ()
 
-(* create client handlers for outgoing connection *)
+(* [make_connection conn addr] connects with the address specified in [addr]
+ * using the socket conn. A net_state representing the new client is returned. *)
 let rec make_connection conn addr () =
-  print_endline "connectingasda..";
   let fd = conn in
   let ic = Lwt_io.of_fd Lwt_io.Input fd in
   let oc = Lwt_io.of_fd Lwt_io.Output fd in
@@ -103,7 +112,8 @@ let rec make_connection conn addr () =
   connections := ((addr.ip, addr.port), net_state) :: !connections;
   Lwt_log.info "Connected to remote" >>= fun () -> return net_state
 
-(* connects to remote *)
+(* [do_connect ip port] makes a socket connection to the address [ip]:[port] with
+ * a seven second timeout. The resulting net_state, if any, is returned. *)
 let rec do_connect ip port =
   let open Lwt_unix in
   let addr = Unix.inet_addr_of_string ip in
@@ -123,32 +133,43 @@ let rec do_connect ip port =
     fun net_state -> 
       return (net_state := {!net_state with out_buffer = Some (cmd_msg);})
 
+(* [send_cmd ip port cmd_msg] uses an existing connection to
+ * [ip], [port], or creates a new one if one does not exist, 
+ * and sends the string [cmd_msg]*)
 let send_cmd ip port cmd_msg =
   let conn_opt = List.assoc_opt (ip,port) !connections in
     match conn_opt with
-    | Some net_state -> print_endline "sendingCmdExistingNetState";
+    | Some net_state -> 
       return (net_state := {!net_state with out_buffer = Some (cmd_msg);})
     | None -> send_uni_cmd ip port cmd_msg
 
-    (*TODO: refactor out *)
+(* [send_friend_req ip port from_name] sends a friend request to 
+* the address specified, where [from_name] is the user sending it. *)
 let send_friend_req ip port from_name =
   send_uni_cmd ip port 
     ("friendreq " ^ from_name ^ " " ^ (string_of_int !running_port))
 
+(* [close ip port] asks any existing net_state with a connection to
+ * [ip]:[port] to disconnect. *)
 let close ip port = 
   let ns_opt = List.assoc_opt (ip, port) !connections in
     match ns_opt with
     | Some ns -> ns := {!ns with do_close = true}
     | None -> ()
 
+(* [register_read_listener listener] stores [listener], which will be
+ * called when a message is received from a client. *)
 let register_read_listener listener =
   message_listeners := listener :: !message_listeners
 
+(* [register_disconnect_listener listener] stores [listener], which will be
+ * called when a client disconnects. *)
 let register_disconnect_listener listener =
   disconnect_listeners := listener :: !disconnect_listeners
 
+(* [start_server ()] starts the server, which listens for TCP connections from
+ * clients. *)
 let start_server () =
-  print_endline ("Starting server...");
   let sock, port = create_socket listen_address desired_port () in
   let serve = create_server sock in
   print_endline ("Started server on port " ^ string_of_int port);
