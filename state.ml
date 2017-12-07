@@ -370,7 +370,7 @@ let check_confirm_group_with friend st =
   if st.talk_status = GroupServer then
     begin (ignore (send_cmd friend.id friend.port "groupconfirm"));
     print_endline (friend.name ^ " has joined the group."); (* TODO: send to all *)
-    print_endline "postSendConfirm";
+    print_endline "PostSendConfirm";
     {st with group_clients = friend::st.group_clients} end
   else 
     (ignore (send_cmd friend.id friend.port "groupbusy"); st)
