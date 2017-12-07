@@ -19,7 +19,8 @@ type state = {
   current_person_being_messaged : person option;
   friend_requests: person list;
   encrypt: bool;
-  encrypt_key : int 
+  encrypt_key : int;
+  spellcheck : bool
   }
 
 let rec lines_in_file_helper (c : in_channel) (acc : string list) =
@@ -100,7 +101,8 @@ let rec get_total_messages_lst friends_list accum =
     current_person_being_messaged = None;
     friend_requests = [];
     encrypt = false;
-    encrypt_key = 0
+    encrypt_key = 0;
+    spellcheck = true
   }
 
 let state_ref = ref (init_state "")
@@ -295,12 +297,15 @@ let leave_convo st =
     current_person_being_messaged = Some friend
   }
 
+  let spellcheck msg = 
+    if !state_ref.spellcheck then (msg |> send) else msg
+
   let send_message message st =
     match st.current_person_being_messaged with
     | None -> print_endline ("Error: You aren't in a conversation.\n"
       ^ "Type /help for commands."); st
     | Some friend -> (* TODO: Update state with message *)
-      ignore(send_cmd friend.id friend.port ("msg:" ^ (message|> encrypt |>send))); st
+      ignore(send_cmd friend.id friend.port ("msg:" ^ (message|> spellcheck |> encrypt))); st
 
 
 (* [clear_messages st] returns the new state with the current user's messages
@@ -317,6 +322,11 @@ let leave_convo st =
     status = intended
   }
 
+let toggle_spellcheck st = 
+  { st with 
+    spellcheck = not (st.spellcheck)
+  }
+
 let do' cmd st =
   (* if st.current_person_being_messaged = None then *)
     match cmd with
@@ -328,6 +338,7 @@ let do' cmd st =
     | Quit -> st
     | Friends_list -> st
     | Encrypt_messages (boolean, key) -> encrypt_messages boolean key st
+    | Toggle_spellcheck -> toggle_spellcheck st
     | Leave_conversation -> leave_convo st
     | Unfriend intended ->remove_friend_txt intended; remove_friend intended st
     | Add_shortcut (shortcut, word) -> st

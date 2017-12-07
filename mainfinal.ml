@@ -51,6 +51,9 @@ let rec repl () =
     | Encrypt_messages (boolean,key) -> if (String.equal (String.lowercase_ascii boolean) "true") then 
       (print_endline ("Now encrypting messages with key: " ^ key ^ "\n"); repl ()) else 
       (print_endline ("Not encrypting messages\n"); repl ())
+    | Toggle_spellcheck -> 
+      if !state_ref.spellcheck then (print_endline ("Spellcheck is now on\n"); repl ()) 
+      else (print_endline ("Spellcheck is now off\n"); repl ())
     | View_requests -> 
       print_endline (current_requests !state_ref);
       repl ()

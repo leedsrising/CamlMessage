@@ -14,7 +14,8 @@ type state = {
   current_person_being_messaged : person option;
   friend_requests: person list;
   encrypt: bool;
-  encrypt_key : int 
+  encrypt_key : int;
+  spellcheck : bool
   }
 
 (* [current_friends s] takes in the current state of this user and returns

@@ -7,7 +7,8 @@ open Lwt
  type command = Talk of string | Friend of (string*int) | Quit | Friends_list 
  | Help | Message_history of string | Clear_history of string | Leave_conversation | Unfriend of string 
  | Add_shortcut of (string*string) | Define of string | Setstatus of string 
- | View_requests | Accept of string | Message of string | Error | Encrypt_messages of string * string
+ | View_requests | Accept of string | Message of string | Error | Encrypt_messages of string * string 
+ | Toggle_spellcheck
 
 (* spec command_type
  *)             
@@ -77,6 +78,10 @@ let commands = [
 {name = "/Encrypt_messages"; min_args = 2; desc = "Encrypt a message before it is sent";
     usage = "/Encrypt_messages <bool> <key>"; aliases = [];
     builder = (fun args -> Encrypt_messages ((List.nth args 1), (List.nth args 2)))};
+
+{name = "/Toggle_spellcheck"; min_args = 0; desc = "Toggle the ability to spellcheck your messages";
+    usage = "/Toggle_spellcheck"; aliases = [];
+    builder = (fun args -> Toggle_spellcheck) };
 ]
 
 let command_help_message = "\n--- CamlMsg Help ---\n\n" ^ (List.fold_left (^) "" 
