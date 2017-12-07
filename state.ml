@@ -33,6 +33,9 @@ let lines_in_file (file : string) =
 let person_to_string (p: person) =
   p.name ^ " " ^ p.id ^ " " ^(string_of_int p.port) ^ "\n"
 
+let print_message_formatted from msg = 
+  print_endline ("[" ^ from ^ "]: " ^ msg)
+
 (* adds a list of persons to the text file *)
 let rec adding_friends (c:out_channel) = function
 | [] -> close_out c
@@ -268,22 +271,12 @@ let leave_convo st =
     if p = friend then accum@[(p, message::sl)]@message_list
     else add_message_to_list friend message xs ((p, sl)::accum)
 
-(* [post_message_friend friend st] returns the new state with [friend] added onto
- * this user's friends list
- *)
- let post_message_friend (friend:person) (message: string) (st:state) : state =
-  { st with
-    username = st.username;
-    friends_list = st.friends_list;
-    messages = add_message_to_list friend message st.messages [];
-    current_person_being_messaged = Some friend
-  }
-
   let send_message message st =
     match st.current_person_being_messaged with
     | None -> print_endline ("Error: You aren't in a conversation.\n"
       ^ "Type /help for commands."); st
     | Some friend -> (* TODO: Update state with message *)
+      print_message_formatted st.username message;
       ignore(send_cmd friend.id friend.port ("msg:" ^ (message|>send))); st
 
 
@@ -349,7 +342,7 @@ let handle_message msg ip =
     | Some person ->
       if person.id = ip then (*TODO: better auth. *)
         let () = add_message_to_txt ("[" ^ person.name ^ "]: " ^ msg) person.name in 
-        print_endline ("[" ^ person.name ^ "]: " ^ (msg)) else
+        print_message_formatted person.name msg else
         print_endline "failed auth2"
 
 let definite opt =
