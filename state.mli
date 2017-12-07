@@ -14,6 +14,9 @@ type state = {
   convo_requests : person list;
   talk_status : talk_status;
   current_person_being_messaged : person option;
+  group_invites : person list;
+  group_host_remote : person option;
+  group_clients : person list;
   friend_requests: person list;
   encrypt: bool;
   encrypt_key : int 
