@@ -483,8 +483,8 @@ let handle_message msg ip =
   | GroupServer -> 
     (match List.find_opt (fun c -> c.id = ip) st.group_clients with
     | None -> ()
-    | Some person -> print_endline msg; state_ref := (send_to_all_clients msg st)
-    )
+    | Some person -> print_endline msg; 
+    state_ref := (send_to_all_clients ("gmsg:" ^ msg) st))
 
 (*TODO: remove definite *)
 let definite opt =
