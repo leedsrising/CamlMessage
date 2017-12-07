@@ -5,10 +5,11 @@ open Lwt
  * seen and treated as an error. 
  *)
  type command = Talk of string | Friend of (string*int) | Quit | Friends_list 
- | Help | Message_history of string | Clear_history of string | Leave_conversation | Unfriend of string 
- | Add_shortcut of (string*string) | Define of string | Setstatus of string 
- | View_requests | Accept of string | Message of string | Error | Encrypt_messages of string * string 
- | Toggle_spellcheck
+ | Help | Message_history of string | Clear_history of string 
+ | Leave_conversation | Unfriend of string | Add_shortcut of (string*string) 
+ | Define of string | Setstatus of string | View_requests | Accept of string 
+ | Message of string | Error | Encrypt_messages of string * string
+ | Invite of string | Join of string | Toggle_spellcheck
 
 (* spec command_type
  *)             
@@ -79,6 +80,15 @@ let commands = [
     usage = "/Encrypt_messages <bool> <key>"; aliases = [];
     builder = (fun args -> Encrypt_messages ((List.nth args 1), (List.nth args 2)))};
 
+{name = "/invite"; min_args = 1; desc = ("Invite a friend to a group " ^ 
+  "conversation. Only the host should use this command.");
+  usage = "/invite <username>"; aliases = [];
+  builder = (fun args -> Invite (List.nth args 1))};
+
+{name = "/join"; min_args = 1; desc = "Join a group conversation.";
+  usage = "/join <host username>"; aliases = [];
+  builder = (fun args -> Join (List.nth args 1))};
+  
 {name = "/Toggle_spellcheck"; min_args = 0; desc = "Toggle the ability to spellcheck your messages";
     usage = "/Toggle_spellcheck"; aliases = [];
     builder = (fun args -> Toggle_spellcheck) };

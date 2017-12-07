@@ -68,6 +68,7 @@ let rec repl () =
     | Help -> 
       print_endline command_help_message;
       repl ()
+    | _ -> repl ()
 
 (* [make_password username password] stores the users username and password in a text file "login.txt"
  * and sets the state username to [username]

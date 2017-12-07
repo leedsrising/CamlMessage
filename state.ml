@@ -20,6 +20,9 @@ type state = {
   convo_requests : person list;
   talk_status : talk_status;
   current_person_being_messaged : person option;
+  group_invites : person list;
+  group_host_remote : person option;
+  group_clients : person list;
   friend_requests: person list;
   encrypt: bool;
   encrypt_key : int;
@@ -106,6 +109,9 @@ let rec get_total_messages_lst friends_list accum =
     talk_status = None;
     convo_requests = [];
     current_person_being_messaged = None;
+    group_invites = [];
+    group_host_remote = None;
+    group_clients = [];
     friend_requests = [];
     encrypt = false;
     encrypt_key = 0;
@@ -230,6 +236,8 @@ let encrypt msg =
 let add_convo_req name st =
   {st with convo_requests = name :: st.convo_requests}
 
+(*TODO: remove/fix print *)
+
 (* [friend_removed friend friends accum] is a helper for [remove_friend]
  * that removes [friend] from [friends]
  *)
@@ -282,14 +290,32 @@ let check_confirm_convo_with friend st =
   else 
     (ignore (send_cmd friend.id friend.port "convobusy"); st)
 
+let clean_up_after_convo st = 
+  {st with talk_status = None;
+    current_person_being_messaged = None;
+    group_host_remote = None}
+
+let disconnect_from (person_opt: person option) st =
+  match person_opt with
+  | None -> st
+  | Some person -> close person.id person.port;
+    clean_up_after_convo st
+
+let terminate_group_server st = 
+  (List.fold_left (fun () client ->
+    close client.id client.port) () st.group_clients);
+    {st with talk_status = None; group_clients = [] }
+
 (* TODO: Handle group *)
-let leave_convo st = 
-  let talking_with_opt = st.current_person_being_messaged in
-    match talking_with_opt with
-    | None -> st
-    | Some person -> close person.id person.port;
-      {st with talk_status = None;
-        current_person_being_messaged = None}
+let leave_convo st =
+  match st.talk_status with
+  | One_to_one -> 
+    disconnect_from st.current_person_being_messaged st
+  | GroupClient -> 
+    disconnect_from st.group_host_remote st
+  | GroupServer -> terminate_group_server st
+  | None -> st
+  
 
 (* [add_message_to_list friend message message_list] adds [message] just sent to
  * [friend] to the list of messages for this user
@@ -301,28 +327,106 @@ let leave_convo st =
     if p = friend then accum@[(p, message::sl)]@message_list
     else add_message_to_list friend message xs ((p, sl)::accum)
 
+let spellcheck msg = 
+    if !state_ref.spellcheck then (msg |> send) else msg
+
+let send_to_all_clients message st = 
+  (List.fold_left (fun () client -> 
+    ignore (send_cmd client.id client.port message)) () st.group_clients);
+    st
+  
+let send_chat_to_all_clients username message st = 
+  send_to_all_clients ("gmsg:[" ^ username ^ "]: " ^ message) st
+
+let send_message message st =
+  match st.talk_status with
+  | None -> print_endline ("Error: You aren't in a conversation.\n"
+    ^ "Type /help for commands."); st
+  | One_to_one -> 
+    (match st.current_person_being_messaged with
+    | None -> print_endline ("Error: Missing peer"); st
+    | Some friend -> (* TODO: Update state with message *)
+      print_message_formatted st.username message;
+      ignore(send_cmd friend.id friend.port ("msg:" ^ (message|> spellcheck |> encrypt))); st)
+  | GroupClient -> 
+    (match st.group_host_remote with
+    | None -> print_endline "Error: Missing group host"; st
+    | Some host -> 
+      (* print_message_formatted st.username message; *)
+      ignore(send_cmd host.id host.port ("gmsg:[" ^ st.username ^ "]: " 
+      ^ (message|> spellcheck |> encrypt))); st)
+  | GroupServer -> print_message_formatted st.username message;
+    send_chat_to_all_clients st.username message st
+    
+    
+
+(* invite someone to group convo *)
+let do_invite name st = 
+  match st.talk_status with
+  | GroupClient | One_to_one -> 
+    print_endline ("Error: You must be the host of a group conversation"
+    ^ " to do that. Please leave this conversation first."); st
+  | GroupServer | None -> match get_friend_by_name name st with
+    | None -> print_endline "Sorry but you don't have a friend by that name."; st
+    | Some friend -> 
+      ignore (send_cmd friend.id friend.port "groupinv");
+      {st with talk_status = GroupServer}
+  
+let add_group_inv name st =
+  {st with group_invites = name :: st.group_invites}
+
+let accept_group_inv friend st =
+  ignore (send_cmd friend.id friend.port "groupaccept");
+  print_endline "postSendAccept";
+  {st with group_invites = 
+    friend_removed friend.name st.group_invites}
+
+(* try to join a group convo *)
+let do_join name st = 
+  match st.talk_status with
+  | None -> begin let person_opt = List.find_opt
+    (fun person -> person.name = name) st.group_invites in
+      match person_opt with
+      | None -> 
+        print_endline "Sorry but you don't have an invite from that person."; st
+      | Some friend -> accept_group_inv friend st
+    end
+  | _ -> print_endline ("Error: Please leave this conversation first."); st
+
+let check_confirm_group_with friend st =
+  if st.talk_status = GroupServer then
+    begin (ignore (send_cmd friend.id friend.port "groupconfirm"));
+    print_endline (friend.name ^ " has joined the group."); (* TODO: send to all *)
+    print_endline "PostSendConfirm";
+    {st with group_clients = friend::st.group_clients} end
+  else 
+    (ignore (send_cmd friend.id friend.port "groupbusy"); st)
+
 (* [post_message_friend friend st] returns the new state with [friend] added onto
  * this user's friends list
  *)
- let post_message_friend (friend:person) (message: string) (st:state) : state =
+ (**let post_message_friend (friend:person) (message: string) (st:state) : state =
   { st with
     username = st.username;
     friends_list = st.friends_list;
     messages = add_message_to_list friend message st.messages [];
     current_person_being_messaged = Some friend
-  }
+  } **)
 
-  let spellcheck msg = 
-    if !state_ref.spellcheck then (msg |> send) else msg
+  
 
-  let send_message message st =
+  (*** let send_message message st =
     match st.current_person_being_messaged with
     | None -> print_endline ("Error: You aren't in a conversation.\n"
       ^ "Type /help for commands."); st
     | Some friend -> (* TODO: Update state with message *)
-      ignore(send_cmd friend.id friend.port ("msg:" ^ (message|> spellcheck |> encrypt))); st
+      ignore(send_cmd friend.id friend.port ("msg:" ^ (message|> spellcheck |> encrypt))); st ***)
 
-
+(* joining as client *)
+let set_in_group_with friend st =
+  print_endline "SetInGroupWith";
+  {st with talk_status = GroupClient;
+    group_host_remote = Some friend; }
 
 (* [clear_messages st] returns the new state with the current user's messages
  * list cleared
@@ -363,6 +467,8 @@ let do' cmd st =
     | View_requests -> st
     | Accept username -> accept_friend_req username st
     | Message m -> send_message m st
+    | Invite name -> do_invite name st 
+    | Join name -> do_join name st
     | Error -> st
     | Help -> st
 
@@ -387,13 +493,29 @@ let add_message_to_txt (msg: string) (name:string) =
 
 let handle_message msg ip =
   let st = !state_ref in
-    match st.current_person_being_messaged with
-    | None -> print_endline "failed auth1"; () (* #ignored *)
+  match st.talk_status with
+  | None -> ()
+  | One_to_one -> 
+    (match st.current_person_being_messaged with
+    | None -> () (* #ignored *)
     | Some person ->
       if person.id = ip then (*TODO: better auth. *)
-        let () = add_message_to_txt ("[" ^ person.name ^ "]: " ^ msg) person.name in 
-        print_message_formatted person.name msg else
-        print_endline "failed auth2"
+        (
+          (* add_message_to_txt ("[" ^ person.name ^ "]: " ^ msg) person.name; *)
+        print_message_formatted person.name msg) else
+        ())
+  | GroupClient ->
+    (match st.group_host_remote with
+    | None -> () (* #ignored *)
+    | Some person ->
+      if person.id = ip then (*TODO: better auth. *)
+        (print_endline msg) else
+        ())
+  | GroupServer -> 
+    (match List.find_opt (fun c -> c.id = ip) st.group_clients with
+    | None -> ()
+    | Some person -> print_endline msg; 
+    state_ref := (send_to_all_clients ("gmsg:" ^ msg) st))
 
 (* [check_friends name ip port acc] checks to see if this exact user is already in the friends list *)
 let rec check_friends name ip port acc = 
@@ -436,6 +558,8 @@ let handle_remote_cmd net_state msg =
   let length = String.length trimmed in
   if length > 4 && (String.sub trimmed 0 4) = "msg:" then
       (handle_message (String.sub trimmed 4 (length - 4)) !net_state.addr.ip) else
+  if length > 5 && (String.sub trimmed 0 5) = "gmsg:" then
+      (handle_message (String.sub trimmed 5 (length - 5)) !net_state.addr.ip) else
   let split = Str.split (Str.regexp " ") trimmed in
   let cmd = List.hd split in
   match cmd with
@@ -471,22 +595,47 @@ let handle_remote_cmd net_state msg =
     state_ref := check_confirm_convo_with friend !state_ref;
   | "convoconfirm" ->  (* (auto if user not in convo) sent by user 1 *)
     let friend = (definite (get_friend_by_ip !net_state.addr.ip !state_ref)) in
-    print_endline (" You are now in a conversation with " ^ friend.name);
+    print_endline ("You are now in a conversation with " ^ friend.name);
     state_ref := set_in_convo_with friend !state_ref
   | "convobusy" ->  (* accepted convo but other user is busy *)
     let friend = (definite (get_friend_by_ip !net_state.addr.ip !state_ref)) in
-    print_endline (" Unfortunately, " ^ friend.name ^ " is already in a 
+    print_endline ("Unfortunately, " ^ friend.name ^ " is already in a 
       conversation.");
+  | "groupinv" ->  (* invited to group convo *)
+    let friend = (definite (get_friend_by_ip !net_state.addr.ip !state_ref)) in
+    state_ref := add_group_inv friend !state_ref;
+    print_endline (friend.name ^ " has invited you to a group conversation.");
+    net_state := {!net_state with do_close = true};
+  | "groupaccept" ->
+    let friend = (definite (get_friend_by_ip !net_state.addr.ip !state_ref)) in
+    state_ref := check_confirm_group_with friend !state_ref;
+  | "groupconfirm" -> 
+    let friend = (definite (get_friend_by_ip !net_state.addr.ip !state_ref)) in
+    print_endline ("You have joined the group hosted by " ^ friend.name);
+    state_ref := set_in_group_with friend !state_ref
+  | "groupbusy" ->  (* accepted convo but host is gone *)
+    let friend = (definite (get_friend_by_ip !net_state.addr.ip !state_ref)) in
+    print_endline ("Unfortunately, " ^ friend.name ^ " is no longer hosting" ^ 
+    "that conversation.");
   | _ -> failwith "Unexpected Remote Command: Use the latest version."
 
 let handle_disconnect net_state =
   let st = !state_ref in
-  let talking_with_opt = st.current_person_being_messaged in
-  match talking_with_opt with
-  | None -> ()
-  | Some person -> if person.id = !net_state.addr.ip
-    then print_endline (person.name ^ " has disconnected.");
-    state_ref := {!state_ref with current_person_being_messaged = None}
+  match st.talk_status with
+  | GroupClient -> (let host = st.group_host_remote in
+    match host with
+    | None -> ()
+    | Some person -> if person.id = !net_state.addr.ip
+      then print_endline ("You have been disconnected from the group.");
+      state_ref := clean_up_after_convo st)
+  | One_to_one ->  
+    (let talking_with_opt = st.current_person_being_messaged in
+    match talking_with_opt with
+    | None -> ()
+    | Some person -> if person.id = !net_state.addr.ip
+      then print_endline (person.name ^ " has disconnected.");
+      state_ref := clean_up_after_convo st)
+  | _ -> ()
 
 
 (* register listeners in networking *)
