@@ -59,10 +59,8 @@ let rec friends_in_file (file : string) : person list=
   let rec print_lines lines acc =
   match lines with
   | [] -> acc
-  | x::xs -> let () = print_endline x in print_lines xs (string_to_friend x :: acc)
+  | x::xs -> print_lines xs (string_to_friend x :: acc)
   in print_lines line_lst []
-  (*let string_version = List.fold_left (fun lst elt -> elt :: lst) [] line_lst in *)
-  (* List.map string_to_friend line_lst *)
 
 (* [add_shortcut sc phrase] adds a user defined shortcut
 * into the file "shortcut.txt" *)
@@ -105,7 +103,7 @@ let rec get_total_messages_lst friends_list accum =
   {
     username = name;
     status = "";
-    friends_list = (try let () = (print_endline "got here :") in friends_in_file "friends.txt"; with e -> print_endline "error"; []);
+    friends_list = (try friends_in_file "friends.txt"; with e -> []);
     messages = [(*access from txt file stored in computer*)];
     convo_requests = [];
     current_person_being_messaged = None;
