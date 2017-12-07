@@ -190,18 +190,5 @@ let main () =
 
 let () =  main ()
 
-(* let update_friends friend = 
-  let () =
-    let oc = open_out "friends.txt" in   
-      fprintf oc "%s\n" (username);  
-      fprintf oc "%s\n" (password);   
-      close_out oc in 
-    try
-    let () = print_string ("\n\nType /help to get a list of commands\n") in
-      state_ref := {!state_ref with friends = friend::(!state_ref.friends)};
-    with
-    | _ ->           
-      state_ref := {!state_ref with username = username };
-      Lwt_main.run (Lwt.join [(start_server ()); repl ()])  *)
   
 
