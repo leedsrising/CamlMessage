@@ -15,7 +15,9 @@ type net_state = {out_buffer:string option ; do_close:bool; addr:conn_addr}
 
 let connections = ref []
 
-let listeners = ref []
+let message_listeners = ref []
+
+let disconnect_listeners = ref []
 
 let get_running_port = !running_port
 
@@ -25,24 +27,30 @@ let to_ip_port saddr =
   | _ -> failwith "bad saddr type"
 
 (* universal writer *)
-let rec handle_write ic oc st_r () =
+let rec handle_write ic oc st_r () = 
   (match !st_r.out_buffer with
   | None -> return_unit
-  | Some s ->
+  | Some s -> print_endline ("writing: " ^ s);
     begin st_r := {!st_r with out_buffer = None};
     Lwt_io.write_line oc s >>= fun () -> Lwt_io.flush oc end) >>=
     fun () -> Lwt_unix.sleep 0.5 >>= fun () ->
     match !st_r.do_close with
-    | true -> (*Lwt_io.close ic >>= fun () -> Lwt_io.close oc >>=
-      fun () -> *) return (Lwt_unix.shutdown !st_r.addr.fd Lwt_unix.SHUTDOWN_ALL)
+    | true -> connections := List.remove_assoc (!st_r.addr.ip, !st_r.addr.port)
+     !connections; 
+      return (Lwt_unix.shutdown !st_r.addr.fd Lwt_unix.SHUTDOWN_ALL)
     | false -> handle_write ic oc st_r () (*connection remains open *)
 
   (* TODO: check for thread problems here *)
 let handle_message msg st_r =
   ignore (List.map (fun (listener_fun:(net_state ref -> string -> unit)) ->
-    listener_fun st_r msg) !listeners); return_unit
+    listener_fun st_r msg) !message_listeners); return_unit
     (* listener_fun !st_r.addr.ip !st_r.addr.port msg) !listeners); return_unit *)
 
+let handle_disconnect st_r =
+  ignore (List.map (fun (listener_fun:(net_state ref -> unit)) ->
+    listener_fun st_r) !disconnect_listeners); return_unit
+    (* listener_fun !st_r.addr.ip !st_r.addr.port msg) !listeners); return_unit *)
+    
 (* universal reader *)
 let rec handle_read ic oc st_r () =
   Lwt_io.read_line_opt ic >>=
@@ -50,7 +58,12 @@ let rec handle_read ic oc st_r () =
       match msg with
       | Some msg -> handle_message msg st_r >>= handle_read ic oc st_r
       | None -> st_r := {!st_r with do_close = true};
-        Lwt_log.info "Connection closed" >>= return)
+        handle_disconnect st_r >>= fun () -> 
+          Lwt_log.info "RConnection closed" >>= return)
+
+let handle_sock_error ns err = 
+  Lwt_log.ign_error (Printexc.to_string err);
+  ns := {!ns with do_close = true }
 
 (* accept incoming connecting to server *)
 let accept_connection conn =
@@ -61,8 +74,8 @@ let accept_connection conn =
   let ic = Lwt_io.of_fd Lwt_io.Input fd in
   let oc = Lwt_io.of_fd Lwt_io.Output fd in
   let net_state = ref {out_buffer = None; do_close = false; addr = {ip; port; fd=fd}} in
-  Lwt.on_failure (handle_read ic oc net_state ()) (fun e -> Lwt_log.ign_error (Printexc.to_string e));
-  Lwt.on_failure (handle_write ic oc net_state ()) (fun e -> Lwt_log.ign_error (Printexc.to_string e));
+  Lwt.on_failure (handle_read ic oc net_state ()) (handle_sock_error net_state);
+  Lwt.on_failure (handle_write ic oc net_state ()) (handle_sock_error net_state);
   connections := ((ip, port), net_state) :: !connections;
   Lwt_log.info "New connection" >>= fun() -> return net_state
 
@@ -87,8 +100,8 @@ let rec make_connection conn addr () =
   let ic = Lwt_io.of_fd Lwt_io.Input fd in
   let oc = Lwt_io.of_fd Lwt_io.Output fd in
   let net_state = ref {out_buffer = None; do_close = false; addr=addr} in
-  Lwt.on_failure (handle_read ic oc net_state ()) (fun e -> Lwt_log.ign_error (Printexc.to_string e));
-  Lwt.on_failure (handle_write ic oc net_state ()) (fun e -> Lwt_log.ign_error (Printexc.to_string e));
+  Lwt.on_failure (handle_read ic oc net_state ()) (handle_sock_error net_state);
+  Lwt.on_failure (handle_write ic oc net_state ()) (handle_sock_error net_state);
   connections := ((addr.ip, addr.port), net_state) :: !connections;
   Lwt_log.info "Connected to remote" >>= fun () -> return net_state
 
@@ -113,7 +126,8 @@ let rec do_connect ip port =
 let send_cmd ip port cmd_msg =
   let conn_opt = List.assoc_opt (ip,port) !connections in
     match conn_opt with
-    | Some net_state -> return (net_state := {!net_state with out_buffer = Some (cmd_msg);})
+    | Some net_state -> print_endline "sendingCmdExistingNetState";
+      return (net_state := {!net_state with out_buffer = Some (cmd_msg);})
     | None -> send_uni_cmd ip port cmd_msg
 
 let send_friend_req ip port from_name =
@@ -122,8 +136,17 @@ let send_friend_req ip port from_name =
     return (net_state := {!net_state with out_buffer =
     Some ("friendreq " ^ from_name ^ " " ^ (string_of_int !running_port));})
 
+let close ip port = 
+  let ns_opt = List.assoc_opt (ip, port) !connections in
+    match ns_opt with
+    | Some ns -> ns := {!ns with do_close = true}
+    | None -> ()
+
 let register_read_listener listener =
-  listeners := listener :: !listeners
+  message_listeners := listener :: !message_listeners
+
+let register_disconnect_listener listener =
+  disconnect_listeners := listener :: !disconnect_listeners
 
 let start_server () =
   print_endline ("Starting server...");

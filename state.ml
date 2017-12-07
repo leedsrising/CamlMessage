@@ -17,7 +17,7 @@ type state = {
   messages : (person * string list) list;
   convo_requests : person list;
   current_person_being_messaged : person option;
-  requests: person list
+  friend_requests: person list
   }
 
 let rec lines_in_file_helper (c : in_channel) (acc : string list) =
@@ -96,7 +96,7 @@ let rec get_total_messages_lst friends_list accum =
     messages = [(*access from txt file stored in computer*)];
     convo_requests = [];
     current_person_being_messaged = None;
-    requests = []
+    friend_requests = []
   }
 
 let state_ref = ref (init_state "")
@@ -146,7 +146,7 @@ let current_friends s =
  let current_friend_reqs_to_string st =
   List.fold_left (^) ""
     (List.mapi (fun i person -> (string_of_int (i + 1)) ^ ". " ^ person.name)
-    st.requests)
+    st.friend_requests)
 
 (* [current_requests s] takes in the current state of this user and returns
  * their requests in string version
@@ -188,7 +188,7 @@ let shortcuts s =
     current_shortcuts_to_string s.shortcut_list "" *)
 
 let get_friend_req name st =
-  List.find_opt (fun friend -> friend.name = name) st.requests
+  List.find_opt (fun friend -> friend.name = name) st.friend_requests
 
 (* [request_friend ip int state] sends a friend request to the user with
  * ip address [ip]
@@ -197,8 +197,8 @@ let request_friend (ip:string) (port:int) (st:state) : state =
   ignore (send_friend_req ip port st.username); st
 
 let remove_friend_req name st =
-  {st with requests =
-    List.filter (fun person -> person.name <> name) st.requests}
+  {st with friend_requests =
+    List.filter (fun person -> person.name <> name) st.friend_requests}
 
 let add_friend name ip port st =
   {st with friends_list = {id=ip; port=port; name=name} :: st.friends_list }
@@ -209,14 +209,15 @@ let accept_friend_req name st =
     print_endline ("Sorry, but you have no pending friend request from "
       ^ name); st
   | Some friend -> begin
-    ignore (send_uni_cmd friend.id friend.port ("friendaccept " ^ st.username
+    ignore (send_cmd friend.id friend.port ("friendaccept " ^ st.username
     ^ " " ^ (string_of_int get_running_port)));
     add_friend_to_txt friend.name friend.id friend.port;
     st |> add_friend friend.name friend.id friend.port
        |> remove_friend_req name end
 
 let add_friend_req name ip port st =
-  {st with requests = {id=ip; port=port; name=name;} :: st.requests}
+  {st with friend_requests = {id=ip; port=port; name=name;} 
+    :: st.friend_requests}
 
 let add_convo_req name st =
   {st with convo_requests = name :: st.convo_requests}
@@ -246,11 +247,11 @@ let request_convo name st =
   let friend_opt = get_friend_by_name name st in
   match friend_opt with
   | None -> print_endline "Sorry but you don't have a friend by that name."; st
-  | Some friend -> ignore (send_uni_cmd friend.id friend.port "convoreq"); st
+  | Some friend -> ignore (send_cmd friend.id friend.port "convoreq"); st
 
 let accept_convo_req friend st =
-  ignore (send_uni_cmd friend.id friend.port "convoaccept");
-  {st with requests = friend_removed friend.name st.requests}
+  ignore (send_cmd friend.id friend.port "convoaccept");
+  {st with convo_requests = friend_removed friend.name st.convo_requests}
 
 let handle_talk name st =
   let friend_opt = List.find_opt
@@ -263,10 +264,16 @@ let set_in_convo_with friend st =
   {st with current_person_being_messaged = Some friend}
 
 let confirm_convo_with friend st =
-  ignore (send_uni_cmd friend.id friend.port "convoconfirm");
-  {st with requests = friend_removed friend.name st.requests}
+  ignore (send_cmd friend.id friend.port "convoconfirm");
+  {st with friend_requests = friend_removed friend.name st.friend_requests}
   |> set_in_convo_with friend
 
+let leave_convo st = 
+  let talking_with_opt = st.current_person_being_messaged in
+    match talking_with_opt with
+    | None -> st
+    | Some person -> close person.id person.port;
+      {st with current_person_being_messaged = None}
 
 (* [add_message_to_list friend message message_list] adds [message] just sent to
  * [friend] to the list of messages for this user
@@ -325,10 +332,9 @@ let do' cmd st =
       print_endline (print_messages (get_messages_for_friend friend)); st
     | Quit -> st
     | Friends_list -> st
-    | Leave_conversation -> st
-    | Unfriend intended -> 
-      remove_friend_txt intended; remove_friend intended st
-    | Add_shortcut (shortcut, word) -> st
+    | Leave_conversation -> leave_convo st
+    | Unfriend intended ->remove_friend_txt intended; remove_friend intended st
+    | Add_shortcut (shortcut, word) -> st(*add_shortcut shortcut word st*)
     | Define intended -> st
     | Setstatus intended -> set_status intended st
     | View_requests -> st
@@ -411,7 +417,18 @@ let handle_remote_cmd net_state msg =
     state_ref := set_in_convo_with friend !state_ref
   | _ -> failwith "Unexpected Remote Command: Use the latest version."
 
+let handle_disconnect net_state =
+  let st = !state_ref in
+  let talking_with_opt = st.current_person_being_messaged in
+  match talking_with_opt with
+  | None -> ()
+  | Some person -> if person.id = !net_state.addr.ip
+    then print_endline (person.name ^ " has disconnected.");
+    state_ref := {!state_ref with current_person_being_messaged = None}
+
+
 (* register listeners in networking *)
 let () =
   print_endline "registering...";
-  register_read_listener handle_remote_cmd
+  register_read_listener handle_remote_cmd;
+  register_disconnect_listener handle_disconnect;
