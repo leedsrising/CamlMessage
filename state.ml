@@ -4,11 +4,13 @@ open MessageTransformer
 
 (* [id] represents the identification of someone through their IP *)
 
+type talk_status = None | One_to_one | GroupClient | GroupServer
+
 type person = {
   name : string;
   id : string;
   port : int;
-  }
+}
 
 type state = {
   username: string;
@@ -16,6 +18,7 @@ type state = {
   friends_list : person list;
   messages : (person * string list) list;
   convo_requests : person list;
+  talk_status : talk_status;
   current_person_being_messaged : person option;
   friend_requests: person list;
   encrypt: bool;
@@ -35,6 +38,9 @@ let lines_in_file (file : string) =
 
 let person_to_string (p: person) =
   p.name ^ " " ^ p.id ^ " " ^(string_of_int p.port) ^ "\n"
+
+let print_message_formatted from msg = 
+  print_endline ("[" ^ from ^ "]: " ^ msg)
 
 (* adds a list of persons to the text file *)
 let rec adding_friends (c:out_channel) = function
@@ -97,6 +103,7 @@ let rec get_total_messages_lst friends_list accum =
     status = "";
     friends_list = (try friends_in_file "friends.txt"; with e -> []);
     messages = [(*access from txt file stored in computer*)];
+    talk_status = None;
     convo_requests = [];
     current_person_being_messaged = None;
     friend_requests = [];
@@ -262,19 +269,27 @@ let handle_talk name st =
     | None -> request_convo name st
 
 let set_in_convo_with friend st =
-  {st with current_person_being_messaged = Some friend}
+  {st with talk_status = One_to_one;
+    current_person_being_messaged = Some friend}
 
-let confirm_convo_with friend st =
-  ignore (send_cmd friend.id friend.port "convoconfirm");
-  {st with friend_requests = friend_removed friend.name st.friend_requests}
-  |> set_in_convo_with friend
+let check_confirm_convo_with friend st =
+  if st.talk_status = None then
+    (ignore (send_cmd friend.id friend.port "convoconfirm");
+    print_endline (friend.name ^ " has accepted your conversation request.");
+    print_endline ("You are now in a conversation with " ^ friend.name);
+    {st with friend_requests = friend_removed friend.name st.friend_requests}
+    |> set_in_convo_with friend)
+  else 
+    (ignore (send_cmd friend.id friend.port "convobusy"); st)
 
+(* TODO: Handle group *)
 let leave_convo st = 
   let talking_with_opt = st.current_person_being_messaged in
     match talking_with_opt with
     | None -> st
     | Some person -> close person.id person.port;
-      {st with current_person_being_messaged = None}
+      {st with talk_status = None;
+        current_person_being_messaged = None}
 
 (* [add_message_to_list friend message message_list] adds [message] just sent to
  * [friend] to the list of messages for this user
@@ -306,6 +321,7 @@ let leave_convo st =
       ^ "Type /help for commands."); st
     | Some friend -> (* TODO: Update state with message *)
       ignore(send_cmd friend.id friend.port ("msg:" ^ (message|> spellcheck |> encrypt))); st
+
 
 
 (* [clear_messages st] returns the new state with the current user's messages
@@ -376,9 +392,10 @@ let handle_message msg ip =
     | Some person ->
       if person.id = ip then (*TODO: better auth. *)
         let () = add_message_to_txt ("[" ^ person.name ^ "]: " ^ msg) person.name in 
-        print_endline ("[" ^ person.name ^ "]: " ^ (msg)) else
+        print_message_formatted person.name msg else
         print_endline "failed auth2"
 
+(*TODO: remove definite *)
 let definite opt =
   match opt with
   | Some thing -> thing
@@ -415,12 +432,15 @@ let handle_remote_cmd net_state msg =
     net_state := {!net_state with do_close = true};
   | "convoaccept" -> (* TODO: fix if already in conversation *) (* sent by user 2 *)
     let friend = (definite (get_friend_by_ip !net_state.addr.ip !state_ref)) in
-    state_ref := confirm_convo_with friend !state_ref;
-    print_endline (friend.name ^ " has accepted your conversation request.");
+    state_ref := check_confirm_convo_with friend !state_ref;
   | "convoconfirm" ->  (* (auto if user not in convo) sent by user 1 *)
     let friend = (definite (get_friend_by_ip !net_state.addr.ip !state_ref)) in
     print_endline (" You are now in a conversation with " ^ friend.name);
     state_ref := set_in_convo_with friend !state_ref
+  | "convobusy" ->  (* accepted convo but other user is busy *)
+    let friend = (definite (get_friend_by_ip !net_state.addr.ip !state_ref)) in
+    print_endline (" Unfortunately, " ^ friend.name ^ " is already in a 
+      conversation.");
   | _ -> failwith "Unexpected Remote Command: Use the latest version."
 
 let handle_disconnect net_state =

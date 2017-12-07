@@ -1,16 +1,18 @@
+type talk_status = None | One_to_one | GroupClient | GroupServer
+
 type person = {
   name : string;
   id : string;
   port : int;
-  }
-  
-(* type state represents the current state of this user *)
+}
+
 type state = {
   username: string;
   status : string;
   friends_list : person list;
   messages : (person * string list) list;
   convo_requests : person list;
+  talk_status : talk_status;
   current_person_being_messaged : person option;
   friend_requests: person list;
   encrypt: bool;
