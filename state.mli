@@ -90,10 +90,9 @@ val add_friend : string -> string -> int -> state -> state
  *)
 val remove_friend : string -> state -> state
 
-(* [clear_messages st] returns the new state with the current user's messages
- * list cleared
+(* [clear_messages friend] clears the stored messages with a given friend
  *)
-val clear_messages : state -> state
+val clear_messages : string -> unit
 
 (* [set_status intended st] returns the new state with the current user's status
  * set to intended

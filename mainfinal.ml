@@ -46,6 +46,8 @@ let rec repl () =
       repl () (**)
     | Message_history intended -> 
       repl ()
+    | Clear_history intended -> 
+      repl ()
     | View_requests -> 
       print_endline ("Current Requests \n");
       print_endline (current_requests !state_ref);

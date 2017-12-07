@@ -170,23 +170,6 @@ let current_requests st =
 let chat_history s =
   "You have chat history with \n\n" ^ chat_history_names s.messages ""
 
-(* [current_friends_to_string frnds accum] takes in the friends list of this
- * user and returns the string version of their friends list
- *)
- (* let rec current_shortcuts_to_string shrtcuts accum =
-  match shrtcuts with
-  | [] -> accum
-  | (shrtcut, wrd)::xs ->
-    current_shortcuts_to_string xs (accum ^ "\n"
-      ^ shrtcut ^ "shortcuts to" ^ wrd)
-
-(* [shortcuts s] takes in the state list of this user and returns the
- * string version of their current shortcuts
- *)
-let shortcuts s =
-  "Your current shortcuts are \n\n" ^
-    current_shortcuts_to_string s.shortcut_list "" *)
-
 let get_friend_req name st =
   List.find_opt (fun friend -> friend.name = name) st.friend_requests
 
@@ -307,13 +290,8 @@ let leave_convo st =
 (* [clear_messages st] returns the new state with the current user's messages
  * list cleared
  *)
- let clear_messages (st:state) : state =
-  { st with
-    username = st.username;
-    friends_list = st.friends_list;
-    messages = [];
-    current_person_being_messaged = st.current_person_being_messaged
-  }
+ let clear_messages name  =
+  let () = (name ^ ".txt") |> open_out |> close_out in ()
 
 (* [set_status intended st] returns the new state with the current user's status
  * set to intended
@@ -330,11 +308,12 @@ let do' cmd st =
     | Friend (ip, port) -> request_friend ip port st
     | Message_history friend -> 
       print_endline (print_messages (get_messages_for_friend friend)); st
+    | Clear_history friend -> clear_messages friend; st
     | Quit -> st
     | Friends_list -> st
     | Leave_conversation -> leave_convo st
     | Unfriend intended ->remove_friend_txt intended; remove_friend intended st
-    | Add_shortcut (shortcut, word) -> st(*add_shortcut shortcut word st*)
+    | Add_shortcut (shortcut, word) -> st
     | Define intended -> st
     | Setstatus intended -> set_status intended st
     | View_requests -> st
