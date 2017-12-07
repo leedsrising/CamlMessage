@@ -347,6 +347,7 @@ let add_group_inv name st =
 
 let accept_group_inv friend st =
   ignore (send_cmd friend.id friend.port "groupaccept");
+  print_endline "postSendAccept";
   {st with group_invites = 
     friend_removed friend.name st.group_invites}
 
@@ -366,12 +367,14 @@ let check_confirm_group_with friend st =
   if st.talk_status = GroupServer then
     begin (ignore (send_cmd friend.id friend.port "groupconfirm"));
     print_endline (friend.name ^ " has joined the group."); (* TODO: send to all *)
+    print_endline "postSendConfirm";
     {st with group_clients = friend::st.group_clients} end
   else 
     (ignore (send_cmd friend.id friend.port "groupbusy"); st)
 
 (* joining as client *)
 let set_in_group_with friend st =
+  print_endline "SetInGroupWith";
   {st with talk_status = GroupClient;
     group_host_remote = Some friend; }
 
@@ -438,8 +441,9 @@ let handle_message msg ip =
     | None -> print_endline "failed auth1"; () (* #ignored *)
     | Some person ->
       if person.id = ip then (*TODO: better auth. *)
-        let () = add_message_to_txt ("[" ^ person.name ^ "]: " ^ msg) person.name in 
-        print_message_formatted person.name msg else
+        (
+          (* add_message_to_txt ("[" ^ person.name ^ "]: " ^ msg) person.name; *)
+        print_message_formatted person.name msg) else
         print_endline "failed auth2"
 
 (*TODO: remove definite *)
