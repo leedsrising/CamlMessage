@@ -1,6 +1,7 @@
-type command = Talk of string | Friend of (string*int) | Quit | Friends_list | Help |
-Leave_conversation | Unfriend of string| Add_shortcut of (string*string) | 
-Define of string | Setstatus of string | View_requests | Accept  of string | Error
+type command = Talk of string | Friend of (string*int) | Quit | Friends_list 
+| Help | Leave_conversation | Unfriend of string 
+| Add_shortcut of (string*string) | Define of string | Setstatus of string 
+| View_requests | Accept  of string | Message of string | Error
 
 type command_type = { name:string; min_args:int; desc:string; usage:string; 
 aliases:string list; builder:(string list -> command)  }

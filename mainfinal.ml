@@ -9,35 +9,11 @@ open Networking2
 open Lwt
 open Printf
 
-(* [talking_repl state] is the repl that the user enters when they are
- * currently in a conversation. The user can leave the conversation, add a
- * shortcut, and define a new word, but none of the other functions will
- * do anything
- *)
-(* let rec talking_repl  messages = 
-  let input = read_line () in
-  let new_state = do' (parse input) ! in
-  match parse input with
-  | Quit -> return_unit
-  | Leave_conversation -> 
-    print_endline ("Leave_conversation");
-    repl  ()
-  | Add_shortcut intended -> 
-    print_endline ("Add_shortcut");
-    talking_repl new_state messages
-  | Define intended -> 
-    print_endline ("Define");
-    talking_repl new_state messages
-  | Error -> 
-    print_endline ("Error");
-    talking_repl state messages
-  | _ -> talking_repl state messages *)
-
 (* [repl state] is the main repl that the user enters when they are
  * not in a conversation. The user can do any of the commmands presented.
  *)
 
-let rec repl () =
+let rec repl () = 
   Lwt_io.print "> " >>=
   fun () -> Lwt_io.read_line Lwt_io.stdin >>= 
   fun input ->
@@ -74,6 +50,8 @@ let rec repl () =
       repl ()
     | Accept _ -> 
       print_endline ("Accept Req");
+      repl ()
+    | Message m ->
       repl ()
     | Error -> 
       print_endline ("Error");
