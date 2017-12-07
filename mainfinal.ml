@@ -135,7 +135,7 @@ let rec get_username file dir handler =
           with e ->
             close_in_noerr ic;
             raise e            
-        else get_username file dir handler
+        else get_friends_list file dir handler
     with
     | e -> Unix.closedir handler; "bob_invalid"
 
@@ -151,7 +151,7 @@ let rec prompt_for_password () =
       let d_handle = Unix.getcwd () |> Unix.opendir in
       let password_matches = check_password_helper input ("login.txt") (Unix.getcwd ()) d_handle in
         if password_matches 
-        then let username = get_username "login.txt" (Unix.getcwd ()) d_handle in 
+        then let username = get_username "login.txt" (Unix.getcwd ()) (Unix.getcwd () |> Unix.opendir) in 
           try
             let () = print_string ("\n\nHello " ^ username ^"! Type /help to get a list of commands\n") in
             state_ref := {!state_ref with username = username};
