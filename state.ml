@@ -348,7 +348,7 @@ let send_message message st =
     | None -> print_endline "Error: Missing group host"; st
     | Some host -> 
       print_message_formatted st.username message;
-      ignore(send_cmd host.id host.port ("msg:" ^ (message|> encrypt |>send))); st)
+      ignore(send_cmd host.id host.port ("gmsg:" ^ (message|> encrypt |>send))); st)
   | GroupServer -> print_message_formatted st.username message;
     send_chat_to_all_clients st.username message st
     
@@ -465,23 +465,26 @@ let handle_message msg ip =
   | None -> ()
   | One_to_one -> 
     (match st.current_person_being_messaged with
-    | None -> print_endline "failed auth1"; () (* #ignored *)
+    | None -> () (* #ignored *)
     | Some person ->
       if person.id = ip then (*TODO: better auth. *)
         (
           (* add_message_to_txt ("[" ^ person.name ^ "]: " ^ msg) person.name; *)
         print_message_formatted person.name msg) else
-        print_endline "failed auth2")
+        ())
   | GroupClient ->
     (match st.group_host_remote with
-    | None -> print_endline "failed auth1"; () (* #ignored *)
+    | None -> () (* #ignored *)
     | Some person ->
       if person.id = ip then (*TODO: better auth. *)
         (print_endline msg) else
-        print_endline "failed auth2")
-  | _ -> ()
+        ())
+  | GroupServer -> 
+    (match List.find_opt (fun c -> c.id = ip) st.group_clients with
+    | None -> ()
+    | Some person -> print_endline msg; state_ref := (send_to_all_clients msg st)
+    )
 
-  
 (*TODO: remove definite *)
 let definite opt =
   match opt with
