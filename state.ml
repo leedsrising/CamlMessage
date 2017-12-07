@@ -373,8 +373,7 @@ let check_confirm_group_with friend st =
 (* joining as client *)
 let set_in_group_with friend st =
   {st with talk_status = GroupClient;
-    group_host_remote = Some friend;
-    group_invites = (friend_removed friend.name st.group_invites); }
+    group_host_remote = Some friend; }
 
 (* [clear_messages st] returns the new state with the current user's messages
  * list cleared
