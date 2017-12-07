@@ -40,18 +40,7 @@ let rec adding_friends (c:out_channel) = function
 
 (*String is of the form name ip port*)
 let string_to_friend str =
-  (* let s = String.trim str in
-  let first_space = String.index s ' ' in
-  let name = String.sub str 0 first_space in
-  let () = print_endline name in
-  let after_name = Str.string_after s (first_space + 1) in
-  let second_space = String.index after_name ' ' in
-  let ip = String.sub str (first_space + 1) (second_space - first_space) in
-  let () = print_endline ip in
-  let port = String.sub str (second_space + 1) (String.length str - second_space) in
-  let () = print_endline port in *)
   let str_list = String.split_on_char ' ' str in
-  let () = print_endline (List.hd str_list);  print_endline (List.nth str_list 1); print_endline (List.nth str_list 2)in
   {id = List.nth str_list 1; name = List.hd str_list; port = int_of_string (List.nth str_list 2)}
 
 let rec friends_in_file (file : string) : person list=
@@ -393,6 +382,7 @@ let handle_remote_cmd net_state msg =
   | "friendaccept" ->
     let name = (List.nth split 1) in
     let port = (List.nth split 2) in
+    add_friend_to_txt name !net_state.addr.ip (int_of_string port);
     state_ref := add_friend name !net_state.addr.ip (int_of_string port)
       !state_ref |> remove_friend_req name;
     print_endline (name ^ " has accepted your friend request!");
