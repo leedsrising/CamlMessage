@@ -20,7 +20,6 @@ let rec repl () =
    state_ref := do' (parse input) !state_ref;
     match parse input with
     | Talk intended -> 
-      print_endline ("talking to " ^ intended);
       repl ()
     | Friend intended -> 
       print_endline ("Friend");
@@ -73,7 +72,7 @@ let make_password username password =
       fprintf oc "%s\n" (password);   
       close_out oc in 
     try
-    let () = print_string ("\n\nType /help to get a list of commands\n") in
+    let () = print_string ("\n\nHello " ^ username ^ "! Type /help to get a list of commands\n") in
       state_ref := {!state_ref with username = username };
       Lwt_main.run (Lwt.join [(start_server ()); repl ()]) 
     with
@@ -118,7 +117,7 @@ let rec get_username file dir handler =
             let username = line1 in
             close_in ic; username
         with e ->
-          close_in_noerr ic;
+          close_in_noerr ic; print_endline "Hi";
           raise e            
       else get_username file dir handler
   with
@@ -154,7 +153,7 @@ let rec prompt_for_password () =
         if password_matches 
         then let username = get_username "login.txt" (Unix.getcwd ()) d_handle in 
           try
-            let () = print_string ("\n\nType /help to get a list of commands\n") in
+            let () = print_string ("\n\nHello " ^ username ^"! Type /help to get a list of commands\n") in
             state_ref := {!state_ref with username = username};
             Lwt_main.run (Lwt.join [(start_server ()); repl ()]) 
           with

@@ -5,8 +5,8 @@ open MessageTransformer
 (* [id] represents the identification of someone through their IP *)
 
 type person = {
-  id : string;
   name : string;
+  id : string;
   port : int;
   }
   
@@ -15,6 +15,7 @@ type state = {
   status : string;
   friends_list : person list;
   messages : (person * string list) list;
+  convo_requests : person list;
   current_person_being_messaged : person option;
   requests: person list
   }
@@ -94,8 +95,9 @@ let init_state (name: string) : state =
   {
     username = name;
     status = "";
-    friends_list = friends_in_file "friends.txt";
-    messages = get_total_messages_lst (friends_in_file "friends.txt") [];
+    friends_list = [(*access from txt file stored in computer*)];
+    messages = [(*access from txt file stored in computer*)];
+    convo_requests = [];
     current_person_being_messaged = None;
     requests = []
   }
@@ -122,8 +124,18 @@ let rec get_friend_by_ip ip st =
  *) 
  let current_friends_to_string st = 
   List.fold_left (^) "" 
-    (List.mapi (fun i person -> (string_of_int (i + 1)) ^ ". " ^ person.name) 
-    st.friends_list)
+    (List.mapi (fun i person -> (string_of_int (i + 1)) ^ ". " ^ person.name 
+    ^ "  " ^ person.id ^ ":" ^ (string_of_int person.port) ^ "\n") 
+  st.friends_list)
+
+(* [current_friends_to_string st] returns the string version of
+    the user's conversation request list
+ *) 
+ let current_convo_reqs_to_string st = 
+  List.fold_left (^) "" 
+    (List.mapi (fun i person -> (string_of_int (i + 1)) ^ ". " ^ person.name 
+    ^ "\n") 
+  st.convo_requests)
 
 (* [current_friends s] takes in the current state of this user and returns
  * their friendlist in string version
@@ -134,7 +146,7 @@ let current_friends s =
 (* [current_requests_to_string st] returns the string version of
     the user's requests list
  *) 
- let current_requests_to_string st = 
+ let current_friend_reqs_to_string st = 
   List.fold_left (^) "" 
     (List.mapi (fun i person -> (string_of_int (i + 1)) ^ ". " ^ person.name) 
     st.requests)
@@ -142,8 +154,9 @@ let current_friends s =
 (* [current_requests s] takes in the current state of this user and returns
  * their requests in string version
  *) 
-let current_requests s = 
-  "\nYour current requests are: \n\n" ^ current_requests_to_string s
+let current_requests st = 
+  "\nPending Friend Requests : \n\n" ^ current_friend_reqs_to_string st
+  ^ "\n\nPending Conversation Requests: \n\n" ^ current_convo_reqs_to_string st
 
 (* [chat_history_names] takes in the current messages list of this 
  * user and returns the string version of the people that they have a chat
@@ -186,38 +199,35 @@ let get_friend_req name st =
 let request_friend (ip:string) (port:int) (st:state) : state =
   ignore (send_friend_req ip port st.username); st
 
-(* [accept_friend_req name st] accepts the friend request from the user
- * with name [name]. If there is not a request from the user [name], then
- * the user receieves a message saying that no request was found.
- *)
+let remove_friend_req name st = 
+  {st with requests = 
+    List.filter (fun person -> person.name <> name) st.requests}
+
+let add_friend name ip port st = 
+  {st with friends_list = {id=ip; port=port; name=name} :: st.friends_list }
+
 let accept_friend_req name st =
   match get_friend_req name st with
   | None -> 
-    print_endline ("Sorry, but you have no pending 
-      friend request from " ^ name); st
+    print_endline ("Sorry, but you have no pending friend request from " 
+      ^ name); st
   | Some friend -> begin
-    ignore (send_friend_accpt friend.id friend.port st.username); 
-    {st with friends_list = 
-    {id = friend.id; port = friend.port; name = name} :: st.friends_list} end
-
-(* [add_friend_req name ip port st] changes this user's friends requests list 
- * in state to include the new friend request from outside user with name 
- * [name]
- *)
+    ignore (send_uni_cmd friend.id friend.port ("friendaccept " ^ st.username 
+    ^ " " ^ (string_of_int get_running_port))); 
+    st |> add_friend friend.name friend.id friend.port 
+       |> remove_friend_req name end
+    
 let add_friend_req name ip port st =
   {st with requests = {id=ip; port=port; name=name;} :: st.requests}
 
-(* [add_friend name ip port st] changes this user's friends list in state to 
- * include the new friend from outside user with name [name]
- *)
-let add_friend name ip port st = 
-  {st with friends_list = {id=ip; port=port; name=name} :: st.friends_list }
+let add_convo_req name st =
+  {st with convo_requests = name :: st.convo_requests}
 
 (* [friend_removed friend friends accum] is a helper for [remove_friend]
  * that removes [friend] from [friends]
  *)
-let rec friend_removed (name:string) (friends: person list) =
-  List.filter (fun friend -> friend.name != name) friends
+let rec friend_removed (name:string) (list: person list) =
+  List.filter (fun friend -> friend.name <> name) list
 
 (* [remove_friend friend st] returns the new state with [friend] taken off 
  * this user's friends list
@@ -228,16 +238,31 @@ let remove_friend (friend_name:string) (st:state) : state =
     current_person_being_messaged = st.current_person_being_messaged (*TODO: leave convo if talking to this friend *)
   }
 
-(* [pre_message_friend friend st] returns the new state with [friend] added as
- * this user's current person being messaged
- *)
-let pre_message_friend (friend:person) (st:state) : state =
- { st with
-    username = st.username;
-    friends_list = st.friends_list;
-    messages = st.messages;
-    current_person_being_messaged = Some friend 
-  }
+let request_convo name st = 
+  let friend_opt = get_friend_by_name name st in
+  match friend_opt with
+  | None -> print_endline "Sorry but you don't have a friend by that name."; st
+  | Some friend -> ignore (send_uni_cmd friend.id friend.port "convoreq"); st
+
+let accept_convo_req friend st = 
+  ignore (send_uni_cmd friend.id friend.port "convoaccept"); 
+  {st with requests = friend_removed friend.name st.requests}
+
+let handle_talk name st = 
+  let friend_opt = List.find_opt 
+  (fun friend -> friend.name = name) st.convo_requests in
+    match friend_opt with   
+    | Some friend -> accept_convo_req friend st
+    | None -> request_convo name st
+
+let set_in_convo_with friend st = 
+  {st with current_person_being_messaged = Some friend}
+
+let confirm_convo_with friend st = 
+  ignore (send_uni_cmd friend.id friend.port "convoconfirm"); 
+  {st with requests = friend_removed friend.name st.requests} 
+  |> set_in_convo_with friend
+
 
 (* [add_message_to_list friend message message_list] adds [message] just sent to
  * [friend] to the list of messages for this user
@@ -301,7 +326,7 @@ let pre_message_friend (friend:person) (st:state) : state =
 let do' cmd st =
   (* if st.current_person_being_messaged = None then *)
     match cmd with
-    | Talk intended -> (* pre_message_friend intended st *) st
+    | Talk username -> handle_talk username st
     | Friend (ip, port) -> request_friend ip port st
     | Message_history friend -> st
     | Quit -> st
@@ -316,16 +341,16 @@ let do' cmd st =
     | Error -> st
     | Help -> st
 
-(* [handle_remote_cmd net_state msg] handles a command from a remote client so
- * that it can read what other users are doing (i.e. telling when another user
- * has accepted this user's friend request)
- *)
+let definite opt = 
+  match opt with 
+  | Some thing -> thing
+  | None -> failwith "Error: it wasn't definite"
+  
 let handle_remote_cmd net_state msg =
   let split = Str.split (Str.regexp " ") msg in
   let cmd = List.hd split in
   match cmd with 
   | "friendreq" -> 
-    print_endline msg;
     let name = (List.nth split 1) in
     let ip = !net_state.addr.ip in
     let port = int_of_string (List.nth split 2) in
@@ -334,13 +359,25 @@ let handle_remote_cmd net_state msg =
     print_endline ("You have received a friend request from " ^ name);
     net_state := {!net_state with do_close = true};
   | "friendaccept" -> 
-    let name = (List.nth split 1) in
-    let ip = !net_state.addr.ip in
-    let port = !net_state.addr.port in
-    state_ref := add_friend name !net_state.addr.ip !net_state.addr.port !state_ref;
-    add_friend_to_txt name ip port;
+    let name = (List.nth split 1) in 
+    let port = (List.nth split 2) in
+    state_ref := add_friend name !net_state.addr.ip (int_of_string port)
+      !state_ref |> remove_friend_req name;
     print_endline (name ^ " has accepted your friend request!");
     net_state := {!net_state with do_close = true};
+  | "convoreq" -> (*sent by user 1 *) (* TODO: this isn't definite *)
+    let friend = (definite (get_friend_by_ip !net_state.addr.ip !state_ref)) in
+    state_ref := add_convo_req friend !state_ref;
+    print_endline (friend.name ^ " would like to start a conversation.");
+    net_state := {!net_state with do_close = true};
+  | "convoaccept" -> (* TODO: fix if already in conversation *) (* sent by user 2 *)
+    let friend = (definite (get_friend_by_ip !net_state.addr.ip !state_ref)) in
+    state_ref := confirm_convo_with friend !state_ref;
+    print_endline (friend.name ^ " has accepted your conversation request.");
+  | "convoconfirm" ->  (* (auto if user not in convo) sent by user 1 *)
+    let friend = (definite (get_friend_by_ip !net_state.addr.ip !state_ref)) in
+    print_endline (" You are now in a conversation with " ^ friend.name);
+    state_ref := set_in_convo_with friend !state_ref
   | _ -> failwith "Unexpected Remote Command: Use the latest version."
 
 (* register listeners in networking *)

@@ -2,7 +2,7 @@
  * including spellchecking and replacing shortcuts *)
 
     (* The type of a message *)
-    type msg
+    type msg = string 
     (* The type of a word *)
     type word
     (* The type of a dictionary *)
