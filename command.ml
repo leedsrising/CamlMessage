@@ -1,15 +1,16 @@
 open Lwt
 
-(* A type exposed and defined in a .mli file must also be defined in
- * the corresponding .ml file.  So you must repeat the definition
- * of [command] here.  This helps OCaml achieve something called
- * "separate compilation", which you could google for.  Yes,
- * it's a little bit annoying, but there is a good reason for it. *)
-type command = Talk of string | Friend of (string*int) | Quit | Friends_list 
-| Help | Leave_conversation | Unfriend of string 
-| Add_shortcut of (string*string) | Define of string | Setstatus of string 
-| View_requests | Accept  of string | Message of string | Error
+(* Type command represents a command by the user to do some action while not in conversation.
+ * If the user's request is not read as being one of the assigned commands, then it is
+ * seen and treated as an error. 
+ *)
+ type command = Talk of string | Friend of (string*int) | Quit | Friends_list 
+ | Help | Message_history of string | Leave_conversation | Unfriend of string 
+ | Add_shortcut of (string*string) | Define of string | Setstatus of string 
+ | View_requests | Accept of string | Message of string | Error
 
+(* spec command_type
+ *)             
 type command_type = { name:string; min_args:int; desc:string; usage:string; 
 aliases:string list; builder:(string list -> command)  }
 
@@ -73,6 +74,9 @@ let command_help_message = "\n--- CamlMsg Help ---\n\n" ^ (List.fold_left (^) ""
 let invalid_usage cmd = 
   (ignore (Lwt_io.printl ("Usage: " ^ cmd.usage));  Error)
 
+(* [parse str] takes in a string from this user and assigns it to either a valid
+ * command as described above or to an error. 
+ *)
 let parse str =
   let trimmed = String.trim str in
   if String.length trimmed = 0 then Error else
