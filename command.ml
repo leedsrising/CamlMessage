@@ -5,7 +5,7 @@ open Lwt
  * seen and treated as an error. 
  *)
  type command = Talk of string | Friend of (string*int) | Quit | Friends_list 
- | Help | Message_history of string | Leave_conversation | Unfriend of string 
+ | Help | Message_history of string | Clear_history of string | Leave_conversation | Unfriend of string 
  | Add_shortcut of (string*string) | Define of string | Setstatus of string 
  | View_requests | Accept of string | Message of string | Error
 
@@ -69,6 +69,10 @@ let commands = [
 {name = "/Message_history"; min_args = 1; desc = "Show message history with a friend";
     usage = "/Message_history <friend> "; aliases = [];
     builder = (fun args -> Message_history (List.nth args 1))};
+
+{name = "/Clear_history"; min_args = 1; desc = "Clear message history with a friend";
+    usage = "/Clear_history <friend>"; aliases = [];
+    builder = (fun args -> Clear_history (List.nth args 1))};
 ]
 
 let command_help_message = "\n--- CamlMsg Help ---\n\n" ^ (List.fold_left (^) "" 

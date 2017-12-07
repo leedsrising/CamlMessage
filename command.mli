@@ -1,5 +1,5 @@
 type command = Talk of string | Friend of (string*int) | Quit | Friends_list 
-| Help | Message_history of string | Leave_conversation | Unfriend of string 
+| Help | Message_history of string | Clear_history of string | Leave_conversation | Unfriend of string 
 | Add_shortcut of (string*string) | Define of string | Setstatus of string 
 | View_requests | Accept of string | Message of string | Error
 
