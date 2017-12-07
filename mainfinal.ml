@@ -26,14 +26,14 @@ let rec repl () =
       repl ()
     | Quit -> return_unit
     | Friends_list -> 
-      print_endline ("Friends_list \n");
-      print_endline (current_friends !state_ref);
+      let () = if (current_friends !state_ref) = "" then print_endline "You have no friends :(\n" 
+      else (print_endline ("Friends List \n");
+      print_endline ("\nYour current friends are: \n" ^ (current_friends !state_ref))); in 
       repl  ()
     | Leave_conversation -> 
       print_endline ("Leave_conversation \n");
       repl ()
     | Unfriend intended -> 
-      print_endline ("Unfriended " ^ intended ^ "\n");
       repl ()
     | Add_shortcut intended -> 
       print_endline ("Add_shortcut \n");

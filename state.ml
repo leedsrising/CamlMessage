@@ -138,7 +138,7 @@ let rec get_friend_by_ip ip st =
  * their friendlist in string version
  *)
 let current_friends s =
-  "\nYour current friends are: \n\n" ^ current_friends_to_string s
+   current_friends_to_string s
 
 (* [current_requests_to_string st] returns the string version of
     the user's requests list
@@ -225,7 +225,13 @@ let add_convo_req name st =
  * that removes [friend] from [friends]
  *)
 let rec friend_removed (name:string) (list: person list) =
-  List.filter (fun friend -> friend.name <> name) list
+  let rec friend_removed_helper name acc = 
+  match acc with 
+  | [] -> print_endline (name ^ " is not a friend"); List.filter (fun friend -> friend.name <> name) list
+  | h::t -> if h.name != name then friend_removed_helper name t 
+    else let () = print_endline ("Removed " ^ name) in 
+    List.filter (fun friend -> friend.name <> name) list 
+  in friend_removed_helper name list
 
 (* [remove_friend friend st] returns the new state with [friend] taken off
  * this user's friends list
@@ -310,36 +316,19 @@ let confirm_convo_with friend st =
     status = intended
   }
 
-(* [add_shortcut shortcut word st] returns the new state with the current user's status
- * set to intended
- *)
- (* let add_shortcut (shortcut:string) (word:string) (st:state) : state =
-  { st with
-    shortcut_list = ((shortcut, word)::st.shortcut_list)
-  } *)
-
-(* [add_shortcut shortcut word st] returns the new state with the current user's status
- * set to intended
- *)
- (* let define (word:string) (st:state) : state =
-  { st with
-    dictionary = ((word)::st.dictionary)
-  } *)
-
-(* [do' cmd st] changes the state according to a command. See details in
- * state.mli
- *)
 let do' cmd st =
   (* if st.current_person_being_messaged = None then *)
     match cmd with
     | Talk username -> handle_talk username st
     | Friend (ip, port) -> request_friend ip port st
-    | Message_history friend -> print_endline (print_messages (get_messages_for_friend friend)); st
+    | Message_history friend -> 
+      print_endline (print_messages (get_messages_for_friend friend)); st
     | Quit -> st
     | Friends_list -> st
     | Leave_conversation -> st
-    | Unfriend intended ->remove_friend_txt intended; remove_friend intended st
-    | Add_shortcut (shortcut, word) -> st(*add_shortcut shortcut word st*)
+    | Unfriend intended -> 
+      remove_friend_txt intended; remove_friend intended st
+    | Add_shortcut (shortcut, word) -> st
     | Define intended -> st
     | Setstatus intended -> set_status intended st
     | View_requests -> st
