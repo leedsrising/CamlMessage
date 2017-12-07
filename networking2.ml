@@ -63,6 +63,7 @@ let accept_connection conn =
   let net_state = ref {out_buffer = None; do_close = false; addr = {ip; port; fd=fd}} in 
   Lwt.on_failure (handle_read ic oc net_state ()) (fun e -> Lwt_log.ign_error (Printexc.to_string e));
   Lwt.on_failure (handle_write ic oc net_state ()) (fun e -> Lwt_log.ign_error (Printexc.to_string e));
+  connections := ((ip, port), net_state) :: !connections;
   Lwt_log.info "New connection" >>= fun() -> return net_state
 
 let create_server sock =
@@ -88,9 +89,8 @@ let rec make_connection conn addr () =
   let net_state = ref {out_buffer = None; do_close = false; addr=addr} in
   Lwt.on_failure (handle_read ic oc net_state ()) (fun e -> Lwt_log.ign_error (Printexc.to_string e));
   Lwt.on_failure (handle_write ic oc net_state ()) (fun e -> Lwt_log.ign_error (Printexc.to_string e));
-  connections := net_state :: !connections;
+  connections := ((addr.ip, addr.port), net_state) :: !connections;
   Lwt_log.info "Connected to remote" >>= fun () -> return net_state
-
 
 (* connects to remote *)
 let rec do_connect ip port = 
@@ -103,11 +103,18 @@ let rec do_connect ip port =
   connect sock (Lwt_unix.ADDR_INET (addr, port)) >>=
   make_connection sock {ip=ip; port=port;fd=sock}
 
-let send_uni_cmd ip port cmd_msg = 
+(* [send_uni_cmd ip port cmd_msg] connects to the socket at 
+ * [ip], [port] and sends the string [cmd_msg]*)
+ let send_uni_cmd ip port cmd_msg = 
   do_connect ip port >>=
   fun net_state -> 
-    return (net_state := {!net_state with out_buffer = 
-    Some (cmd_msg);})
+    return (net_state := {!net_state with out_buffer = Some (cmd_msg);})
+
+let send_cmd ip port cmd_msg = 
+  let conn_opt = List.assoc_opt (ip,port) !connections in
+    match conn_opt with
+    | Some net_state -> return (net_state := {!net_state with out_buffer = Some (cmd_msg);})
+    | None -> send_uni_cmd ip port cmd_msg
 
 let send_friend_req ip port from_name = 
   do_connect ip port >>=

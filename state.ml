@@ -296,6 +296,14 @@ let confirm_convo_with friend st =
     current_person_being_messaged = Some friend
   }
 
+  let send_message message st = 
+    match st.current_person_being_messaged with
+    | None -> print_endline ("Error: You aren't in a conversation.\n" 
+      ^ "Type /help for commands."); st
+    | Some friend -> (* TODO: Update state with message *)
+      ignore(send_cmd friend.id friend.port ("msg:" ^ message)); st
+
+
 (* [clear_messages st] returns the new state with the current user's messages
  * list cleared
  *)
@@ -349,8 +357,18 @@ let do' cmd st =
     | Setstatus intended -> set_status intended st
     | View_requests -> st
     | Accept username -> accept_friend_req username st
+    | Message m -> send_message m st
     | Error -> st
     | Help -> st
+
+let handle_message msg ip = 
+  let st = !state_ref in
+    match st.current_person_being_messaged with
+    | None -> print_endline "failed auth1"; () (* #ignored *)
+    | Some person ->
+      if person.id = ip then (*TODO: better auth. *)
+      print_endline ("[" ^ person.name ^ "]: " ^ msg) else 
+        print_endline "failed auth2"
 
 let definite opt = 
   match opt with 
@@ -358,7 +376,12 @@ let definite opt =
   | None -> failwith "Error: it wasn't definite"
   
 let handle_remote_cmd net_state msg =
-  let split = Str.split (Str.regexp " ") msg in
+  print_endline msg;
+  let trimmed = String.trim msg in
+  let length = String.length trimmed in
+  if length > 4 && (String.sub trimmed 0 4) = "msg:" then 
+      (handle_message (String.sub trimmed 4 (length - 4)) !net_state.addr.ip) else
+  let split = Str.split (Str.regexp " ") trimmed in
   let cmd = List.hd split in
   match cmd with 
   | "friendreq" -> 

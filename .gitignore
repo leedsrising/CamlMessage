@@ -3,6 +3,7 @@
 *.cmi
 *.byte
 *.DS_Store
+.DS_Store
 login.txt
 friends.txt
 userdef.txt
