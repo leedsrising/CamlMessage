@@ -72,6 +72,7 @@ let add_friend_to_txt (friend : string) (id: string) (port: int) =
   let c = "friends.txt" |> open_out in
   adding_friends c new_list
 
+(* [lst_remove ele lst accum] is lst without ele. *)
 let rec lst_remove ele lst accum =
   match lst with
   | [] -> accum
@@ -87,9 +88,12 @@ let remove_friend_txt (friend : string) =
   let c = "friends.txt" |> open_out in
   adding_friends c new_list
 
+(* [print_messages line_lst] combines the lines in line_lst to one string *)
 let print_messages line_lst =
   List.fold_left (fun acc ele -> ele ^ "\n" ^ acc) "" line_lst
 
+(* [get_messages_for_friend friend] is all of the messages in the conversation with 
+   friend. *)
 let get_messages_for_friend (friend : string) =
   lines_in_file (friend ^ ".txt")
 
@@ -198,10 +202,13 @@ let get_friend_req name st =
 let request_friend (ip:string) (port:int) (st:state) : state =
   ignore (send_friend_req ip port st.username); st
 
+(* [remove_friend_req name st] st without any friend requests from 
+ * a person with name [name] *)
 let remove_friend_req name st =
   {st with friend_requests =
     List.filter (fun person -> person.name <> name) st.friend_requests}
 
+(* [add_friend name ip port st] adds a friend to the friends list *)
 let add_friend name ip port st =
   {st with friends_list = {id=ip; port=port; name=name} :: st.friends_list }
 
