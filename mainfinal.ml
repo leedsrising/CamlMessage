@@ -109,7 +109,7 @@ let rec get_username file dir handler =
             let username = line1 in
             close_in ic; username
         with e ->
-          close_in_noerr ic; print_endline "Hi";
+          close_in_noerr ic;
           raise e            
       else get_username file dir handler
   with
