@@ -25,8 +25,9 @@ type state = {
   group_clients : person list;
   friend_requests: person list;
   encrypt: bool;
-  encrypt_key : int 
-}
+  encrypt_key : int;
+  spellcheck : bool
+  }
 
 let rec lines_in_file_helper (c : in_channel) (acc : string list) =
   try
@@ -113,7 +114,8 @@ let rec get_total_messages_lst friends_list accum =
     group_clients = [];
     friend_requests = [];
     encrypt = false;
-    encrypt_key = 0
+    encrypt_key = 0;
+    spellcheck = true
   }
 
 let state_ref = ref (init_state "")
@@ -325,6 +327,9 @@ let leave_convo st =
     if p = friend then accum@[(p, message::sl)]@message_list
     else add_message_to_list friend message xs ((p, sl)::accum)
 
+let spellcheck msg = 
+    if !state_ref.spellcheck then (msg |> send) else msg
+
 let send_to_all_clients message st = 
   (List.fold_left (fun () client -> 
     ignore (send_cmd client.id client.port message)) () st.group_clients);
@@ -342,14 +347,14 @@ let send_message message st =
     | None -> print_endline ("Error: Missing peer"); st
     | Some friend -> (* TODO: Update state with message *)
       print_message_formatted st.username message;
-      ignore(send_cmd friend.id friend.port ("msg:" ^ (message|> encrypt |>send))); st)
+      ignore(send_cmd friend.id friend.port ("msg:" ^ (message|> spellcheck |> encrypt))); st)
   | GroupClient -> 
     (match st.group_host_remote with
     | None -> print_endline "Error: Missing group host"; st
     | Some host -> 
       (* print_message_formatted st.username message; *)
       ignore(send_cmd host.id host.port ("gmsg:[" ^ st.username ^ "]: " 
-      ^ (message|> encrypt |>send))); st)
+      ^ (message|> spellcheck |> encrypt))); st)
   | GroupServer -> print_message_formatted st.username message;
     send_chat_to_all_clients st.username message st
     
@@ -397,6 +402,26 @@ let check_confirm_group_with friend st =
   else 
     (ignore (send_cmd friend.id friend.port "groupbusy"); st)
 
+(* [post_message_friend friend st] returns the new state with [friend] added onto
+ * this user's friends list
+ *)
+ (**let post_message_friend (friend:person) (message: string) (st:state) : state =
+  { st with
+    username = st.username;
+    friends_list = st.friends_list;
+    messages = add_message_to_list friend message st.messages [];
+    current_person_being_messaged = Some friend
+  } **)
+
+  
+
+  (*** let send_message message st =
+    match st.current_person_being_messaged with
+    | None -> print_endline ("Error: You aren't in a conversation.\n"
+      ^ "Type /help for commands."); st
+    | Some friend -> (* TODO: Update state with message *)
+      ignore(send_cmd friend.id friend.port ("msg:" ^ (message|> spellcheck |> encrypt))); st ***)
+
 (* joining as client *)
 let set_in_group_with friend st =
   print_endline "SetInGroupWith";
@@ -417,6 +442,11 @@ let set_in_group_with friend st =
     status = intended
   }
 
+let toggle_spellcheck st = 
+  { st with 
+    spellcheck = not (st.spellcheck)
+  }
+
 let do' cmd st =
   (* if st.current_person_being_messaged = None then *)
     match cmd with
@@ -428,6 +458,7 @@ let do' cmd st =
     | Quit -> st
     | Friends_list -> st
     | Encrypt_messages (boolean, key) -> encrypt_messages boolean key st
+    | Toggle_spellcheck -> toggle_spellcheck st
     | Leave_conversation -> leave_convo st
     | Unfriend intended ->remove_friend_txt intended; remove_friend intended st
     | Add_shortcut (shortcut, word) -> st
@@ -486,6 +517,35 @@ let handle_message msg ip =
     | Some person -> print_endline msg; 
     state_ref := (send_to_all_clients ("gmsg:" ^ msg) st))
 
+(* [check_friends name ip port acc] checks to see if this exact user is already in the friends list *)
+let rec check_friends name ip port acc = 
+  match acc with 
+  | [] -> false 
+  | h::t -> if (String.equal h.name name && String.equal h.id ip && h.port == port) then true 
+    else check_friends name ip port t
+
+(*[check_friends_name name acc] checks if the user already has a friend of the same name*)
+let rec check_friends_name name acc = 
+  match acc with 
+  | [] -> false 
+  | h :: t -> if (String.equal h.name name) then true else check_friends_name name t
+
+ (* [rename_helper name split_name acc] returns the number of occurances of a name
+  * in the friends list
+  *)
+let rec rename_helper name split_name acc = 
+  match split_name with 
+    | [] -> acc
+    | h::t -> if String.equal h name then acc + 1 else (rename_helper name t acc)
+
+(* [rename name lst acc] returns the int to be appended to the name so that 
+ * it is not duplicated in friends_list
+ *)
+let rec rename_int name lst acc = 
+  match lst with 
+  | [] -> acc 
+  | h::t -> rename_int name t (rename_helper name (String.split_on_char '_' h.name ) acc)
+
 (*TODO: remove definite *)
 let definite opt =
   match opt with
@@ -512,11 +572,18 @@ let handle_remote_cmd net_state msg =
     net_state := {!net_state with do_close = true};
   | "friendaccept" ->
     let name = (List.nth split 1) in
+    let ip = !net_state.addr.ip in 
     let port = (List.nth split 2) in
-    add_friend_to_txt name !net_state.addr.ip (int_of_string port);
-    state_ref := add_friend name !net_state.addr.ip (int_of_string port)
+    if (check_friends name ip (int_of_string port) !state_ref.friends_list) then 
+    let new_state = (remove_friend_req name !state_ref) in state_ref := new_state;
+    let () = print_endline (name ^ " is already your friend"); in ()
+    else 
+    let new_name = (if check_friends_name name !state_ref.friends_list 
+      then let () = print_endline "Hi";in name ^ "_" ^ (string_of_int (rename_int name !state_ref.friends_list 0)) else let () = print_endline "Hi1";in name) in 
+    add_friend_to_txt new_name !net_state.addr.ip (int_of_string port);
+    state_ref := add_friend new_name !net_state.addr.ip (int_of_string port)
       !state_ref |> remove_friend_req name;
-    print_endline (name ^ " has accepted your friend request!");
+    print_endline (new_name ^ " has accepted your friend request!");
     net_state := {!net_state with do_close = true};
   | "convoreq" -> (*sent by user 1 *) (* TODO: this isn't definite *)
     let friend = (definite (get_friend_by_ip !net_state.addr.ip !state_ref)) in

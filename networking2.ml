@@ -106,11 +106,8 @@ let rec make_connection conn addr () =
 (* connects to remote *)
 let rec do_connect ip port =
   let open Lwt_unix in
-  print_endline ("doc: " ^ ip ^ ":" ^ (string_of_int port));
   let addr = Unix.inet_addr_of_string ip in
-  print_endline "doc2";
   let sock = socket PF_INET SOCK_STREAM 0 in
-  print_endline "doc3";
   let timeout = Lwt_timeout.create 7 (fun () -> 
   print_endline ("Error: Failed to connect to " ^ ip 
   ^ ":" ^ (string_of_int port))) in

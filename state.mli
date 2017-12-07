@@ -19,8 +19,9 @@ type state = {
   group_clients : person list;
   friend_requests: person list;
   encrypt: bool;
-  encrypt_key : int 
-}
+  encrypt_key : int;
+  spellcheck : bool
+  }
 
 (* [current_friends s] takes in the current state of this user and returns
  * their friendlist in string version
