@@ -64,8 +64,8 @@ let rec lst_remove ele lst accum =
   match lst with
   | [] -> accum
   | x::xs ->
-    if x.name = ele then lst_remove ele lst accum
-    else lst_remove ele lst (x::accum)
+    if x.name = ele then lst_remove ele xs accum
+    else lst_remove ele xs (x::accum)
 
 (* [add_shortcut sc phrase] adds a user defined shortcut
 * into the file "shortcut.txt" *)
@@ -338,9 +338,9 @@ let do' cmd st =
     | Quit -> st
     | Friends_list -> st
     | Leave_conversation -> st
-    | Unfriend intended -> remove_friend intended st
-    | Add_shortcut (shortcut, word) -> failwith "todo"(*add_shortcut shortcut word st*)
-    | Define intended -> failwith "todo"
+    | Unfriend intended ->remove_friend_txt intended; remove_friend intended st
+    | Add_shortcut (shortcut, word) -> st(*add_shortcut shortcut word st*)
+    | Define intended -> st
     | Setstatus intended -> set_status intended st
     | View_requests -> st
     | Accept username -> accept_friend_req username st
