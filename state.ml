@@ -377,8 +377,7 @@ let handle_remote_cmd net_state msg =
     let name = (List.nth split 1) in
     let ip = !net_state.addr.ip in
     let port = int_of_string (List.nth split 2) in
-    state_ref := add_friend_req name !net_state.addr.ip 
-      (int_of_string (List.nth split 2)) !state_ref;
+    state_ref := add_friend_req name ip port !state_ref;
     print_endline ("You have received a friend request from " ^ name);
     net_state := {!net_state with do_close = true};
   | "friendaccept" -> 
