@@ -334,7 +334,7 @@ let do' cmd st =
     match cmd with
     | Talk username -> handle_talk username st
     | Friend (ip, port) -> request_friend ip port st
-    | Message_history friend -> st
+    | Message_history friend -> print_endline (print_messages (get_messages_for_friend friend)); st
     | Quit -> st
     | Friends_list -> st
     | Leave_conversation -> st
@@ -348,12 +348,33 @@ let do' cmd st =
     | Error -> st
     | Help -> st
 
+let rec adding_messages (c:out_channel) = function
+| [] -> close_out c
+| x :: xs -> output_string c (x^"\n"); flush c; adding_messages c xs
+let rec messages_in_file (file : string) : string list=
+  let line_lst = lines_in_file file in
+  let rec print_lines lines acc =
+  match lines with
+  | [] -> acc
+  | x::xs -> print_lines xs (x :: acc)
+  in print_lines line_lst []
+
+(* [add_shortcut sc phrase] adds a user defined shortcut
+* into the file "shortcut.txt" *)
+let add_message_to_txt (msg: string) (name:string) =
+  let () = print_endline "got here add message" in
+  let orig_lst = name ^ ".txt" |> messages_in_file in
+  let new_list = msg::orig_lst in
+  let c = name ^ ".txt" |> open_out in
+  adding_messages c new_list
+
 let handle_message msg ip =
   let st = !state_ref in
     match st.current_person_being_messaged with
     | None -> print_endline "failed auth1"; () (* #ignored *)
     | Some person ->
       if person.id = ip then (*TODO: better auth. *)
+        let () = add_message_to_txt ("[" ^ person.name ^ "]: " ^ msg) person.name in 
         print_endline ("[" ^ person.name ^ "]: " ^ (msg)) else
         print_endline "failed auth2"
 
@@ -375,12 +396,7 @@ let handle_remote_cmd net_state msg =
     let name = (List.nth split 1) in
     let ip = !net_state.addr.ip in
     let port = int_of_string (List.nth split 2) in
-<<<<<<< HEAD
     state_ref := add_friend_req name ip port !state_ref;
-=======
-    state_ref := add_friend_req name !net_state.addr.ip
-      (int_of_string (List.nth split 2)) !state_ref;
->>>>>>> c698b6c7eabf74ae411a5a4ad7a8624e7dd5148b
     print_endline ("You have received a friend request from " ^ name);
     net_state := {!net_state with do_close = true};
   | "friendaccept" ->

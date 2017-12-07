@@ -12,7 +12,6 @@ open Printf
 (* [repl state] is the main repl that the user enters when they are
  * not in a conversation. The user can do any of the commmands presented.
  *)
-
 let rec repl () = 
   Lwt_io.print "> " >>=
   fun () -> Lwt_io.read_line Lwt_io.stdin >>= 
@@ -44,9 +43,8 @@ let rec repl () =
       repl ()
     | Setstatus intended -> 
       print_endline ("Setstatus \n");
-      repl ()
+      repl () (**)
     | Message_history intended -> 
-      print_messages (get_messages_for_friend intended);
       repl ()
     | View_requests -> 
       print_endline ("Current Requests \n");
