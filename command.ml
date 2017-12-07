@@ -102,6 +102,6 @@ let parse str =
   | Some cmd -> 
     if List.length split - 1 >= cmd.min_args then
       try (cmd.builder split) with e -> invalid_usage cmd
-    else 
-    invalid_usage cmd
-  | None -> Error
+    else invalid_usage cmd
+  | None -> print_endline "Error: Unrecognized Command. Type /help for help.";
+      Error

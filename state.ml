@@ -197,7 +197,7 @@ let accept_friend_req name st =
       ^ name); st
   | Some friend -> begin
     ignore (send_cmd friend.id friend.port ("friendaccept " ^ st.username
-    ^ " " ^ (string_of_int get_running_port)));
+    ^ " " ^ (string_of_int (get_running_port ()))));
     add_friend_to_txt friend.name friend.id friend.port;
     st |> add_friend friend.name friend.id friend.port
        |> remove_friend_req name end

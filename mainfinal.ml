@@ -16,22 +16,22 @@ let rec repl () =
   Lwt_io.print "> " >>=
   fun () -> Lwt_io.read_line Lwt_io.stdin >>= 
   fun input ->
-   state_ref := do' (parse input) !state_ref;
-    match parse input with
+   let parsed = (parse input) in
+   state_ref := do' parsed !state_ref;
+    match parsed with
     | Talk intended -> 
       print_endline ("Chat request sent \n");
       repl ()
     | Friend intended -> 
       print_endline ("Friend request sent \n");
       repl ()
-    | Quit -> return_unit
+    | Quit -> exit 0
     | Friends_list -> 
       let () = if (current_friends !state_ref) = "" then print_endline "You have no friends :(\n" 
       else (print_endline ("Friends List \n");
       print_endline ("\nYour current friends are: \n" ^ (current_friends !state_ref))); in 
       repl  ()
     | Leave_conversation -> 
-      print_endline ("Leave_conversation \n");
       repl ()
     | Unfriend intended -> 
       repl ()
@@ -52,7 +52,6 @@ let rec repl () =
       (print_endline ("Now encrypting messages with key: " ^ key ^ "\n"); repl ()) else 
       (print_endline ("Not encrypting messages\n"); repl ())
     | View_requests -> 
-      print_endline ("Current Requests \n");
       print_endline (current_requests !state_ref);
       repl ()
     | Accept s -> 
@@ -62,7 +61,6 @@ let rec repl () =
     | Message m ->
       repl ()
     | Error -> 
-      print_endline ("Error");
       repl ()
     | Help -> 
       print_endline command_help_message;

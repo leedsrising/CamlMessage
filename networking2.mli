@@ -5,7 +5,7 @@ type net_state = {out_buffer:string option ; do_close:bool; addr:conn_addr}
  * the sending of messages and statuses to and from clients. *)
 
 
-val get_running_port : int
+val get_running_port : unit -> int
 
 val to_ip_port : Lwt_unix.sockaddr -> string * int
 
@@ -23,8 +23,6 @@ val create_server: Lwt_unix.file_descr -> unit -> 'a Lwt.t
 val create_socket: Lwt_unix.inet_addr -> int -> unit -> Lwt_unix.file_descr * int
 
 val make_connection: Lwt_unix.file_descr -> conn_addr -> unit -> net_state ref Lwt.t
-
-val do_connect: string -> int -> net_state ref Lwt.t
 
 (* val send_uni_cmd: string -> int -> string -> unit Lwt.t*)
 
