@@ -12,7 +12,6 @@ type person = {
   port : int;
 }
 
-
 type state = {
   username: string;
   status : string;
@@ -396,6 +395,35 @@ let handle_message msg ip =
         print_message_formatted person.name msg else
         print_endline "failed auth2"
 
+(* [check_friends name ip port acc] checks to see if this exact user is already in the friends list *)
+let rec check_friends name ip port acc = 
+  match acc with 
+  | [] -> false 
+  | h::t -> if (String.equal h.name name && String.equal h.id ip && h.port == port) then true 
+    else check_friends name ip port t
+
+(*[check_friends_name name acc] checks if the user already has a friend of the same name*)
+let rec check_friends_name name acc = 
+  match acc with 
+  | [] -> false 
+  | h :: t -> if (String.equal h.name name) then true else check_friends_name name t
+
+ (* [rename_helper name split_name acc] returns the number of occurances of a name
+  * in the friends list
+  *)
+let rec rename_helper name split_name acc = 
+  match split_name with 
+    | [] -> acc
+    | h::t -> if String.equal h name then acc + 1 else (rename_helper name t acc)
+
+(* [rename name lst acc] returns the int to be appended to the name so that 
+ * it is not duplicated in friends_list
+ *)
+let rec rename_int name lst acc = 
+  match lst with 
+  | [] -> acc 
+  | h::t -> rename_int name t (rename_helper name (String.split_on_char '_' h.name ) acc)
+
 (*TODO: remove definite *)
 let definite opt =
   match opt with
@@ -420,11 +448,18 @@ let handle_remote_cmd net_state msg =
     net_state := {!net_state with do_close = true};
   | "friendaccept" ->
     let name = (List.nth split 1) in
+    let ip = !net_state.addr.ip in 
     let port = (List.nth split 2) in
-    add_friend_to_txt name !net_state.addr.ip (int_of_string port);
-    state_ref := add_friend name !net_state.addr.ip (int_of_string port)
+    if (check_friends name ip (int_of_string port) !state_ref.friends_list) then 
+    let new_state = (remove_friend_req name !state_ref) in state_ref := new_state;
+    let () = print_endline (name ^ " is already your friend"); in ()
+    else 
+    let new_name = (if check_friends_name name !state_ref.friends_list 
+      then let () = print_endline "Hi";in name ^ "_" ^ (string_of_int (rename_int name !state_ref.friends_list 0)) else let () = print_endline "Hi1";in name) in 
+    add_friend_to_txt new_name !net_state.addr.ip (int_of_string port);
+    state_ref := add_friend new_name !net_state.addr.ip (int_of_string port)
       !state_ref |> remove_friend_req name;
-    print_endline (name ^ " has accepted your friend request!");
+    print_endline (new_name ^ " has accepted your friend request!");
     net_state := {!net_state with do_close = true};
   | "convoreq" -> (*sent by user 1 *) (* TODO: this isn't definite *)
     let friend = (definite (get_friend_by_ip !net_state.addr.ip !state_ref)) in
