@@ -325,13 +325,34 @@ let leave_convo st =
     if p = friend then accum@[(p, message::sl)]@message_list
     else add_message_to_list friend message xs ((p, sl)::accum)
 
-  let send_message message st =
-    match st.current_person_being_messaged with
-    | None -> print_endline ("Error: You aren't in a conversation.\n"
-      ^ "Type /help for commands."); st
+let send_to_all_clients message st = 
+  (List.fold_left (fun () client -> 
+    ignore (send_cmd client.id client.port message)) () st.group_clients);
+    st
+  
+let send_chat_to_all_clients username message st = 
+  send_to_all_clients ("gmsg:[" ^ username ^ "]: " ^ message) st
+
+let send_message message st =
+  match st.talk_status with
+  | None -> print_endline ("Error: You aren't in a conversation.\n"
+    ^ "Type /help for commands."); st
+  | One_to_one -> 
+    (match st.current_person_being_messaged with
+    | None -> print_endline ("Error: Missing peer"); st
     | Some friend -> (* TODO: Update state with message *)
       print_message_formatted st.username message;
-      ignore(send_cmd friend.id friend.port ("msg:" ^ (message|> encrypt |>send))); st
+      ignore(send_cmd friend.id friend.port ("msg:" ^ (message|> encrypt |>send))); st)
+  | GroupClient -> 
+    (match st.group_host_remote with
+    | None -> print_endline "Error: Missing group host"; st
+    | Some host -> 
+      print_message_formatted st.username message;
+      ignore(send_cmd host.id host.port ("msg:" ^ (message|> encrypt |>send))); st)
+  | GroupServer -> print_message_formatted st.username message;
+    send_chat_to_all_clients st.username message st
+    
+    
 
 (* invite someone to group convo *)
 let do_invite name st = 
