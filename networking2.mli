@@ -28,6 +28,8 @@ val do_connect: string -> int -> net_state ref Lwt.t
 
 val send_uni_cmd: string -> int -> string -> unit Lwt.t
 
+val send_cmd: string -> int -> string -> unit Lwt.t
+
 val send_friend_req: string -> int -> string -> unit Lwt.t
 
 val register_read_listener: (net_state ref -> string -> unit) -> unit

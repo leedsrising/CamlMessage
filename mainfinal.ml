@@ -13,7 +13,7 @@ open Printf
  * not in a conversation. The user can do any of the commmands presented.
  *)
 
-let rec repl () =
+let rec repl () = 
   Lwt_io.print "> " >>=
   fun () -> Lwt_io.read_line Lwt_io.stdin >>= 
   fun input ->
@@ -54,6 +54,8 @@ let rec repl () =
     | Accept s -> 
       print_endline ("Accept Req");
       close_out (open_out (s ^ ".txt"));
+      repl ()
+    | Message m ->
       repl ()
     | Error -> 
       print_endline ("Error");

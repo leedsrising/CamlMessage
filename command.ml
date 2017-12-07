@@ -4,9 +4,10 @@ open Lwt
  * If the user's request is not read as being one of the assigned commands, then it is
  * seen and treated as an error. 
  *)
-type command = Talk of string | Friend of (string*int) | Quit | Friends_list | Help | Message_history of string |
-                Leave_conversation | Unfriend of string| Add_shortcut of (string*string) | 
-                Define of string | Setstatus of string | View_requests | Accept of string | Error
+ type command = Talk of string | Friend of (string*int) | Quit | Friends_list 
+ | Help | Message_history of string | Leave_conversation | Unfriend of string 
+ | Add_shortcut of (string*string) | Define of string | Setstatus of string 
+ | View_requests | Accept of string | Message of string | Error
 
 (* spec command_type
  *)             
@@ -78,6 +79,9 @@ let invalid_usage cmd =
  *)
 let parse str =
   let trimmed = String.trim str in
+  if String.length trimmed = 0 then Error else
+  if String.get trimmed 0 <> '/' then
+    Message trimmed else
   let split = Str.split (Str.regexp " ") trimmed in
   let usr_cmd = List.hd split in
   (*TODO: aliases *)
@@ -87,7 +91,5 @@ let parse str =
     if List.length split - 1 >= cmd.min_args then
       try (cmd.builder split) with e -> invalid_usage cmd
     else 
-      if String.get trimmed 0 = '/' then
-        invalid_usage cmd (*TODO: handle message *)
-      else  invalid_usage cmd
+    invalid_usage cmd
   | None -> Error
