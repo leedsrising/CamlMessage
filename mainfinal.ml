@@ -171,7 +171,6 @@ let rec prompt_for_password () =
         else 
           print_endline "Incorrect password.\n";
           prompt_for_password ()
-          | _ -> failwith "should never get here"
   end
 
 (* [main ()] starts the REPL, which prompts for a user to log in.
@@ -191,7 +190,6 @@ let main () =
       print_string  "> ";
       match read_line () with 
       | password -> make_password username password
-    | _ -> failwith "should never get here"
   end
 
 let () =  main ()
